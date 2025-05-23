@@ -17,6 +17,20 @@ interface MeetingMinuteEditModalProps {
   onSave: (record: any) => void
 }
 
+/**
+ * 会议纪要编辑模态框组件数据操作
+ *
+ * 数据操作:
+ * 1. 数据编辑 (Update)
+ *    - 来源: 父组件传入的 record 对象
+ *    - 操作: 编辑会议纪要
+ *    - 元素: 会议纪要，包含基本信息、施工单位反映问题、监理单位分析、其他单位、后续事项等
+ *
+ * 2. 数据保存 (Update)
+ *    - 来源: 用户界面交互
+ *    - 操作: 保存编辑后的会议纪要
+ *    - 元素: 编辑后的会议纪要
+ */
 export function MeetingMinuteEditModal({ isOpen, onClose, record, onSave }: MeetingMinuteEditModalProps) {
   const [editedRecord, setEditedRecord] = useState<any>(null)
   const [activeSection, setActiveSection] = useState<string>("basic")
@@ -121,7 +135,7 @@ export function MeetingMinuteEditModal({ isOpen, onClose, record, onSave }: Meet
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0">
         <DialogHeader className="p-6 pb-2">
           <div className="flex items-center gap-2">
             <FileCheck className="h-5 w-5 text-amber-500" />
@@ -179,7 +193,7 @@ export function MeetingMinuteEditModal({ isOpen, onClose, record, onSave }: Meet
         </div>
 
         {/* Scrollable Content */}
-        <div className="overflow-y-auto p-6 pt-4 space-y-8" onScroll={handleScroll}>
+        <div className="overflow-y-auto max-h-[calc(90vh-8rem)] p-6 pt-4 space-y-8" onScroll={handleScroll}>
           {/* Basic Info Section */}
           <div ref={basicInfoRef} className="space-y-4">
             <h3 className="text-lg font-medium flex items-center gap-2">

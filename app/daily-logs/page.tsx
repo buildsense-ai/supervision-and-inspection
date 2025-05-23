@@ -7,6 +7,19 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar, Download, Edit, FileText } from "lucide-react"
 import Link from "next/link"
 
+/**
+ * 监理日志页面数据操作
+ *
+ * 数据操作:
+ * 1. 数据检索 (Read)
+ *    - 来源: 硬编码的 mockDailyLogs 数组
+ *    - 元素: 监理日志列表，包含ID、日期、状态、天气等
+ *
+ * 2. 数据展示 (Read)
+ *    - 来源: mockDailyLogs 数组
+ *    - 操作: 展示监理日志详情
+ */
+
 // Mock data for daily logs
 const mockDailyLogs = [
   {

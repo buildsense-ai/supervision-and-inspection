@@ -10,6 +10,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Calendar, Plus, Save, X } from "lucide-react"
 import Link from "next/link"
 
+/**
+ * 监理日志编辑组件数据操作
+ *
+ * 数据操作:
+ * 1. 数据加载 (Read)
+ *    - 来源: 父组件传入的 id 或 initialData
+ *    - 操作: 加载特定ID的监理日志数据或使用初始数据
+ *    - 元素: 监理日志，包含基本信息、监理人员、施工活动、监理活动、问题记录、其他事项等
+ *
+ * 2. 数据编辑 (Update)
+ *    - 来源: 用户界面交互
+ *    - 操作: 编辑监理日志各部分内容
+ *    - 元素: 监理日志各字段
+ *
+ * 3. 数据添加 (Create)
+ *    - 来源: 用户界面交互
+ *    - 操作: 添加施工活动、监理活动、问题记录、其他事项等
+ *    - 元素: 新的活动、问题、事项等
+ *
+ * 4. 数据删除 (Delete)
+ *    - 来源: 用户界面交互
+ *    - 操作: 删除施工活动、监理活动、问题记录、其他事项等
+ *    - 元素: 现有的活动、问题、事项等
+ *
+ * 5. 数据保存 (Create/Update)
+ *    - 来源: 用户界面交互
+ *    - 操作: 保存编辑后的监理日志
+ *    - 元素: 完整的监理日志数据
+ */
 interface DailyLogEditProps {
   id?: string
   initialData?: any

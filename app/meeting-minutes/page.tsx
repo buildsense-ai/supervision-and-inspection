@@ -6,6 +6,19 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Download, Edit, FileText, Users } from "lucide-react"
 
+/**
+ * 会议纪要页面数据操作
+ *
+ * 数据操作:
+ * 1. 数据检索 (Read)
+ *    - 来源: 硬编码的 mockMeetingMinutes 数组
+ *    - 元素: 会议纪要列表，包含ID、标题、日期、状态、参会人数等
+ *
+ * 2. 数据展示 (Read)
+ *    - 来源: mockMeetingMinutes 数组
+ *    - 操作: 展示会议纪要详情
+ */
+
 // Mock data for meeting minutes
 const mockMeetingMinutes = [
   {

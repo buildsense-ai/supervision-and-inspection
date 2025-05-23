@@ -16,6 +16,20 @@ interface ProblemRecordEditModalProps {
   onSave: (record: any) => void
 }
 
+/**
+ * 问题记录编辑模态框组件数据操作
+ *
+ * 数据操作:
+ * 1. 数据编辑 (Update)
+ *    - 来源: 父组件传入的 record 对象
+ *    - 操作: 编辑问题记录
+ *    - 元素: 问题记录，包含状态、描述、相关规范/图纸、施工部位、责任单位/人等
+ *
+ * 2. 数据保存 (Update)
+ *    - 来源: 用户界面交互
+ *    - 操作: 保存编辑后的问题记录
+ *    - 元素: 编辑后的问题记录
+ */
 export function ProblemRecordEditModal({ isOpen, onClose, record, onSave }: ProblemRecordEditModalProps) {
   const [editedRecord, setEditedRecord] = useState<any>(null)
 

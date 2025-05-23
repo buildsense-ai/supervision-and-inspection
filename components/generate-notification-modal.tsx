@@ -11,6 +11,19 @@ import {
 import { Button } from "@/components/ui/button"
 import { FileText } from "lucide-react"
 
+/**
+ * 生成通知单模态框组件数据操作
+ *
+ * 数据操作:
+ * 1. 数据展示 (Read)
+ *    - 来源: 父组件传入的 record 对象
+ *    - 元素: 问题记录，用于生成通知单
+ *
+ * 2. 数据生成 (Create)
+ *    - 来源: 用户界面交互
+ *    - 操作: 基于问题记录生成通知单
+ *    - 元素: 当前查看的问题记录
+ */
 interface GenerateNotificationModalProps {
   isOpen: boolean
   onClose: () => void

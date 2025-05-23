@@ -5,6 +5,19 @@ import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Calendar, MapPin, User, FileText, LinkIcon } from "lucide-react"
 import Image from "next/image"
 
+/**
+ * 问题记录详情模态框组件数据操作
+ *
+ * 数据操作:
+ * 1. 数据展示 (Read)
+ *    - 来源: 父组件传入的 record 对象
+ *    - 元素: 问题记录详情，包含状态、描述、相关规范/图纸、施工部位、责任单位/人、记录时间、相关图片、相关文档等
+ *
+ * 2. 数据操作触发 (Update/Create)
+ *    - 来源: 用户界面交互
+ *    - 操作: 触发编辑问题记录、生成通知单等操作
+ *    - 元素: 当前查看的问题记录
+ */
 interface ProblemRecordDetailModalProps {
   isOpen: boolean
   onClose: () => void

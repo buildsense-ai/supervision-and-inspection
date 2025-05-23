@@ -3,6 +3,14 @@ import { AlertCircle, ArrowRight, FileText, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+/**
+ * 看板概览页面数据操作
+ *
+ * 数据操作:
+ * 1. 数据展示 (Read)
+ *    - 来源: 硬编码的 dashboardItems 数组
+ *    - 元素: 看板项目，包含标题、值、图标、链接等
+ */
 export default function DashboardPage() {
   const dashboardItems = [
     {

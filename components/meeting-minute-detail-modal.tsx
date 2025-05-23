@@ -12,6 +12,19 @@ interface MeetingMinuteDetailModalProps {
   onGenerateMinute: (recordId: string) => void
 }
 
+/**
+ * 会议纪要详情模态框组件数据操作
+ *
+ * 数据操作:
+ * 1. 数据展示 (Read)
+ *    - 来源: 父组件传入的 record 对象
+ *    - 元素: 会议纪要详情，包含基本信息、参会人员、会议议程、讨论内容、决议事项、已生成文档等
+ *
+ * 2. 数据操作触发 (Update/Create)
+ *    - 来源: 用户界面交互
+ *    - 操作: 触发编辑会议纪要、生成会议纪要文档等操作
+ *    - 元素: 当前查看的会议纪要
+ */
 export function MeetingMinuteDetailModal({
   isOpen,
   onClose,
@@ -124,7 +137,7 @@ export function MeetingMinuteDetailModal({
                     <p className="font-medium">
                       {index + 1}. {discussion.topic}
                     </p>
-                    <p className="text-muted-foreground ml-5 mt-1">{discussion.content}</p>
+                    <p className="text-muted-foreground ml-5 mt-1">{discussion.content}</p>}
                   </div>
                 ))}
               </div>

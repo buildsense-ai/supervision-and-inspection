@@ -12,6 +12,19 @@ interface DailyLogDetailModalProps {
   onGenerateDailyLog: (recordId: string) => void
 }
 
+/**
+ * 监理日志详情模态框组件数据操作
+ *
+ * 数据操作:
+ * 1. 数据展示 (Read)
+ *    - 来源: 父组件传入的 record 对象
+ *    - 元素: 监理日志详情，包含基本信息、监理人员、施工活动、监理活动、问题记录、其他事项、已生成文档等
+ *
+ * 2. 数据操作触发 (Update/Create)
+ *    - 来源: 用户界面交互
+ *    - 操作: 触发编辑监理日志、生成监理日志文档等操作
+ *    - 元素: 当前查看的监理日志
+ */
 export function DailyLogDetailModal({ isOpen, onClose, record, onEdit, onGenerateDailyLog }: DailyLogDetailModalProps) {
   if (!record) {
     return (

@@ -1,0 +1,143 @@
+// 问题记录
+export const mockIssues = [
+  {
+    id: "issue-1",
+    type: "issue",
+    title: "主体结构梁柱连接处钢筋绑扎不符合规范",
+    date: "2023-05-15",
+    location: "3号楼4层东侧",
+    status: "pending",
+    icon: () => null,
+    description: "在检查过程中发现3号楼4层东侧的梁柱连接处钢筋绑扎不符合规范要求，存在搭接长度不足、绑扎不牢固等问题。",
+    responsibleUnit: "某建筑公司",
+    dueDate: "2023-05-20",
+    tags: ["结构", "钢筋", "重要"],
+  },
+  {
+    id: "issue-2",
+    type: "issue",
+    title: "外墙保温材料厚度不足",
+    date: "2023-05-16",
+    location: "2号楼西立面",
+    status: "resolved",
+    icon: () => null,
+    description: "经测量，2号楼西立面外墙保温材料厚度为45mm，低于设计要求的50mm。",
+    responsibleUnit: "某装饰公司",
+    dueDate: "2023-05-25",
+    tags: ["外墙", "保温", "材料"],
+  },
+  {
+    id: "issue-3",
+    type: "issue",
+    title: "电气管线敷设间距不符合规范",
+    date: "2023-05-17",
+    location: "1号楼配电室",
+    status: "pending",
+    icon: () => null,
+    description: "1号楼配电室内强弱电管线间距不足，不符合规范要求，存在安全隐患。",
+    responsibleUnit: "某电气公司",
+    dueDate: "2023-05-22",
+    tags: ["电气", "安全", "重要"],
+  },
+]
+
+// 旁站记录
+export const mockSupervisionRecords = [
+  {
+    id: "supervision-1",
+    type: "supervision",
+    title: "地下室底板混凝土浇筑旁站记录",
+    date: "2023-05-10",
+    location: "地下室底板区域",
+    status: "completed",
+    icon: () => null,
+    description: "对地下室底板混凝土浇筑过程进行全程旁站监督，检查混凝土质量、浇筑工艺及振捣密实度等。",
+    supervisor: "张工",
+    contractor: "某建筑公司",
+    tags: ["混凝土", "基础", "地下室"],
+  },
+  {
+    id: "supervision-2",
+    type: "supervision",
+    title: "主体结构柱钢筋绑扎旁站记录",
+    date: "2023-05-12",
+    location: "3号楼1-4层",
+    status: "completed",
+    icon: () => null,
+    description: "对3号楼1-4层主体结构柱钢筋绑扎进行旁站监督，检查钢筋型号、数量、间距及绑扎质量等。",
+    supervisor: "李工",
+    contractor: "某建筑公司",
+    tags: ["钢筋", "结构", "柱"],
+  },
+  {
+    id: "supervision-3",
+    type: "supervision",
+    title: "屋面防水施工旁站记录",
+    date: "2023-05-14",
+    location: "1号楼屋面",
+    status: "completed",
+    icon: () => null,
+    description: "对1号楼屋面防水施工进行旁站监督，检查防水材料、搭接方式、收头处理等。",
+    supervisor: "王工",
+    contractor: "某防水公司",
+    tags: ["防水", "屋面"],
+  },
+]
+
+// 监理日志
+export const mockDailyLogs = [
+  {
+    id: "log-1",
+    type: "daily-log",
+    title: "2023年5月15日监理日志",
+    date: "2023-05-15",
+    location: "整个工地",
+    status: "completed",
+    icon: () => null,
+    description:
+      "今日天气晴朗，气温22-28℃，现场施工人员约120人。主要施工内容：3号楼主体结构施工、1号楼外墙保温施工、2号楼室内管线敷设。",
+    tags: ["天气", "人员", "进度"],
+  },
+  {
+    id: "log-2",
+    type: "daily-log",
+    title: "2023年5月16日监理日志",
+    date: "2023-05-16",
+    location: "整个工地",
+    status: "completed",
+    icon: () => null,
+    description:
+      "今日天气多云，气温20-25℃，现场施工人员约115人。主要施工内容：地下室防水施工、3号楼主体结构施工、2号楼外墙砌筑。",
+    tags: ["天气", "人员", "进度"],
+  },
+]
+
+// 会议纪要
+export const mockMeetingMinutes = [
+  {
+    id: "meeting-1",
+    type: "meeting",
+    title: "工程例行协调会议纪要",
+    date: "2023-05-14",
+    time: "14:30-16:00",
+    location: "项目部会议室",
+    attendees: 12,
+    status: "completed",
+    icon: () => null,
+    description: "讨论了工程进度、质量控制、安全管理等问题，明确了下阶段工作重点和各方职责。",
+    tags: ["协调会", "进度", "质量"],
+  },
+  {
+    id: "meeting-2",
+    type: "meeting",
+    title: "外墙保温施工技术交底会",
+    date: "2023-05-16",
+    time: "09:00-10:30",
+    location: "项目部会议室",
+    attendees: 8,
+    status: "completed",
+    icon: () => null,
+    description: "对外墙保温施工工艺、材料要求、质量控制点等进行了详细交底，明确了施工标准和验收要求。",
+    tags: ["技术交底", "外墙", "保温"],
+  },
+]

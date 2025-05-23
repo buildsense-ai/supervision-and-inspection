@@ -46,6 +46,18 @@ const mockSupervisionRecords = [
   },
 ]
 
+/**
+ * 旁站记录页面数据操作
+ *
+ * 数据操作:
+ * 1. 数据检索 (Read)
+ *    - 来源: 硬编码的 mockSupervisionRecords 数组
+ *    - 元素: 旁站记录列表，包含ID、标题、日期、时间、位置、结论、文档标志等
+ *
+ * 2. 数据展示 (Read)
+ *    - 来源: mockSupervisionRecords 数组
+ *    - 操作: 展示旁站记录详情
+ */
 export default function SupervisionPage() {
   return (
     <DashboardLayout>

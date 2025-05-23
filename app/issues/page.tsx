@@ -20,6 +20,29 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+/**
+ * 问题记录页面数据操作
+ *
+ * 数据操作:
+ * 1. 数据检索 (Read)
+ *    - 来源: 硬编码的 mockIssues 数组
+ *    - 元素: 问题记录列表，包含ID、描述、状态、日期、位置、图片标志、责任单位等
+ *
+ * 2. 数据过滤 (Read)
+ *    - 来源: mockIssues 数组
+ *    - 操作: 基于状态(全部/待处理/已闭环)过滤问题记录
+ *
+ * 3. 数据选择 (Update)
+ *    - 来源: 用户界面交互
+ *    - 操作: 通过复选框选择问题记录
+ *    - 元素: selectedIssues 状态数组
+ *
+ * 4. 合并问题 (Create/Update)
+ *    - 来源: 用户界面交互
+ *    - 操作: 合并选中的问题记录
+ *    - 元素: 选中的问题记录ID列表
+ *    - 注意: 当前仅打印到控制台，未实际执行数据操作
+ */
 // Mock data for issues
 const mockIssues = [
   {

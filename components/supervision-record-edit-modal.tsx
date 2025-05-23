@@ -19,6 +19,20 @@ interface SupervisionRecordEditModalProps {
   onSave: (record: any) => void
 }
 
+/**
+ * 旁站记录编辑模态框组件数据操作
+ *
+ * 数据操作:
+ * 1. 数据编辑 (Update)
+ *    - 来源: 父组件传入的 record 对象
+ *    - 操作: 编辑旁站记录
+ *    - 元素: 旁站记录，包含基本信息、前期检查项目、旁站检查项目、发现问题、备注等
+ *
+ * 2. 数据保存 (Update)
+ *    - 来源: 用户界面交互
+ *    - 操作: 保存编辑后的旁站记录
+ *    - 元素: 编辑后的旁站记录
+ */
 export function SupervisionRecordEditModal({ isOpen, onClose, record, onSave }: SupervisionRecordEditModalProps) {
   const [editedRecord, setEditedRecord] = useState<any>(null)
   const [activeSection, setActiveSection] = useState<string>("basic")
@@ -134,7 +148,7 @@ export function SupervisionRecordEditModal({ isOpen, onClose, record, onSave }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0">
         <DialogHeader className="p-6 pb-2">
           <div className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-blue-500" />
@@ -192,7 +206,7 @@ export function SupervisionRecordEditModal({ isOpen, onClose, record, onSave }: 
         </div>
 
         {/* Scrollable Content */}
-        <div className="overflow-y-auto p-6 pt-4 space-y-8" onScroll={handleScroll}>
+        <div className="overflow-y-auto max-h-[calc(90vh-8rem)] p-6 pt-4 space-y-8" onScroll={handleScroll}>
           {/* Basic Info Section */}
           <div ref={basicInfoRef} className="space-y-4">
             <h3 className="text-lg font-medium flex items-center gap-2">

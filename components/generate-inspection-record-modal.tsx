@@ -20,6 +20,19 @@ interface GenerateInspectionRecordModalProps {
   onGenerate: () => void
 }
 
+/**
+ * 生成巡检记录模态框组件数据操作
+ *
+ * 数据操作:
+ * 1. 数据展示 (Read)
+ *    - 来源: 父组件传入的 selectedRecords 数组
+ *    - 元素: 选中的问题记录，用于生成巡检记录
+ *
+ * 2. 数据生成 (Create)
+ *    - 来源: 用户界面交互
+ *    - 操作: 基于选中的问题记录生成巡检记录
+ *    - 元素: 选中的问题记录
+ */
 export function GenerateInspectionRecordModal({
   isOpen,
   onClose,

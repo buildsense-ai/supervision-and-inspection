@@ -7,6 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Download, FileText, AlertCircle, ClipboardList, FileCheck } from "lucide-react"
 
+/**
+ * 文档页面数据操作
+ *
+ * 数据操作:
+ * 1. 数据检索 (Read)
+ *    - 来源: 硬编码的 mockDocuments 数组
+ *    - 元素: 文档列表，包含ID、标题、类型、日期、相关事件等
+ *
+ * 2. 数据过滤 (Read)
+ *    - 来源: mockDocuments 数组
+ *    - 操作: 基于文档类型(全部/通知单/巡检记录/旁站记录/监理日志/会议纪要)过滤文档
+ */
+
 // Mock data for documents
 const mockDocuments = [
   {

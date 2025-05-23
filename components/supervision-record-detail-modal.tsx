@@ -7,6 +7,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ClipboardList, FileText, CheckCircle2, AlertCircle } from "lucide-react"
 import { useState } from "react"
 
+/**
+ * 旁站记录详情模态框组件数据操作
+ *
+ * 数据操作:
+ * 1. 数据展示 (Read)
+ *    - 来源: 父组件传入的 record 对象
+ *    - 元素: 旁站记录详情，包含基础识别信息、旁站过程核心记录、已生成文档等
+ *
+ * 2. 数据操作触发 (Update/Create)
+ *    - 来源: 用户界面交互
+ *    - 操作: 触发编辑旁站记录、生成旁站记录文档等操作
+ *    - 元素: 当前查看的旁站记录
+ */
 interface SupervisionRecordDetailModalProps {
   isOpen: boolean
   onClose: () => void

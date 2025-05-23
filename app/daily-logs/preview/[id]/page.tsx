@@ -7,6 +7,16 @@ import DashboardLayout from "@/app/dashboard-layout"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
 
+/**
+ * 监理日志预览页面数据操作
+ *
+ * 数据操作:
+ * 1. 数据检索 (Read)
+ *    - 来源: 路由参数(ID)
+ *    - 操作: 获取特定ID的监理日志数据
+ *    - 元素: 日志基本信息、监理人员、施工活动、监理活动、问题记录、其他事项等
+ *    - 注意: 当前使用模拟数据，实际应从API获取
+ */
 export default function DailyLogPreviewPage() {
   const params = useParams()
   const { id } = params

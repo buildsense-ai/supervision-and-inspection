@@ -171,3 +171,12 @@ export default function DailyLogPreviewPage() {
     </DashboardLayout>
   )
 }
+
+/**
+ * 监理日志预览页面数据操作
+ *
+ * 数据操作:
+ * 1. 数据展示 (Read)
+ *    - 来源: 硬编码的 logData 对象
+ *    - 元素: 日志基本信息、监理人员、施工活动、监理活动、问题记录、其他事项等
+ */
