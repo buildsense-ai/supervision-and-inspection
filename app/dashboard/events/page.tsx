@@ -1,5 +1,7 @@
 "use client"
 
+import { DialogTrigger } from "@/components/ui/dialog"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -26,7 +28,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -746,9 +747,10 @@ export default function EventsPage() {
         {filteredEvents.map((event) => {
           // 为旁站记录添加显示字段映射
           const displayEvent =
-            event.type === "supervision"
+            event.type === "supervision" || !event.type
               ? {
                   ...event,
+                  type: "supervision",
                   title: event.project_name || "旁站记录",
                   date: event.start_datetime
                     ? new Date(event.start_datetime).toISOString().split("T")[0]
@@ -791,7 +793,7 @@ export default function EventsPage() {
                       {getEventTypeLabel(event.type)}
                     </Badge>
                   </div>
-                  <displayEvent.icon className={`h-4 w-4 ${getIconColor(event.type)}`} />
+                  {displayEvent.icon && <displayEvent.icon className={`h-4 w-4 ${getIconColor(event.type)}`} />}
                 </div>
                 <h3 className="font-medium line-clamp-2 mb-2">{displayEvent.title}</h3>
 
