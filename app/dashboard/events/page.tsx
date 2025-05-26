@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Calendar,
   MapPin,
@@ -18,6 +19,8 @@ import {
   FileCheck,
   FileText,
   ClipboardCheck,
+  Search,
+  Filter,
 } from "lucide-react"
 import {
   Dialog,
@@ -332,11 +335,12 @@ const mockEvents = [...mockIssues, ...mockDailyLogs, ...mockSupervisionRecords, 
 
 export default function EventsPage() {
   const router = useRouter()
-  const [selectedType, setSelectedType] = useState<string>("all")
+  const [activeTab, setActiveTab] = useState("issues")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")
   const [selectedEvents, setSelectedEvents] = useState<string[]>([])
   const [showMergeDialog, setShowMergeDialog] = useState(false)
   const [showInspectionDialog, setShowInspectionDialog] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   // State for problem record detail modal
   const [problemDetailModalOpen, setProblemDetailModalOpen] = useState(false)
@@ -366,30 +370,41 @@ export default function EventsPage() {
   // State for meeting minute edit modal
   const [meetingEditModalOpen, setMeetingEditModalOpen] = useState(false)
 
-  // Reset selected events when type changes
+  // Reset selected events when tab changes
   useEffect(() => {
     setSelectedEvents([])
-  }, [selectedType])
+  }, [activeTab])
 
-  // Reset status filter when type changes to non-issue type
-  useEffect(() => {
-    if (selectedType !== "all" && selectedType !== "issue") {
-      setSelectedStatus("all")
-    }
-  }, [selectedType])
+  // Filter events based on active tab, status, and search query
+  const getFilteredEvents = () => {
+    const filteredEvents = mockEvents.filter((event) => {
+      // Filter by tab/type
+      if (activeTab === "issues" && event.type !== "issue") return false
+      if (activeTab === "supervision" && event.type !== "supervision") return false
+      if (activeTab === "dailyLogs" && event.type !== "daily-log") return false
+      if (activeTab === "meetings" && event.type !== "meeting") return false
 
-  // Filter events based on selected type and status
-  const filteredEvents = mockEvents.filter((event) => {
-    const typeMatch = selectedType === "all" || event.type === selectedType
+      // Filter by status (only for issues)
+      if (event.type === "issue" && selectedStatus !== "all" && event.status !== selectedStatus) {
+        return false
+      }
 
-    // Only apply status filter for issue type events
-    if (event.type === "issue") {
-      const statusMatch = selectedStatus === "all" || event.status === selectedStatus
-      return typeMatch && statusMatch
-    }
+      // Filter by search query
+      if (
+        searchQuery &&
+        !event.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !(event.location && event.location.toLowerCase().includes(searchQuery.toLowerCase()))
+      ) {
+        return false
+      }
 
-    return typeMatch
-  })
+      return true
+    })
+
+    return filteredEvents
+  }
+
+  const filteredEvents = getFilteredEvents()
 
   const handleCheckboxChange = (eventId: string) => {
     setSelectedEvents((prev) => (prev.includes(eventId) ? prev.filter((id) => id !== eventId) : [...prev, eventId]))
@@ -407,9 +422,6 @@ export default function EventsPage() {
     // In a real app, this would generate the inspection record and redirect
     router.push("/dashboard/documents")
   }
-
-  // Check if the current view allows selection (only for issues)
-  const allowsSelection = selectedType === "all" || selectedType === "issue"
 
   // Get only issue events that are selected
   const selectedIssueEvents = selectedEvents.filter((id) =>
@@ -658,271 +670,351 @@ export default function EventsPage() {
     }
   }, [])
 
+  // Tab configuration
+  const tabs = [
+    {
+      id: "issues",
+      label: "问题记录",
+      icon: AlertCircle,
+      color: "text-red-500",
+      count: mockIssues.length,
+    },
+    {
+      id: "supervision",
+      label: "旁站记录",
+      icon: ClipboardList,
+      color: "text-blue-500",
+      count: mockSupervisionRecords.length,
+    },
+    {
+      id: "dailyLogs",
+      label: "监理日志",
+      icon: Calendar,
+      color: "text-green-500",
+      count: mockDailyLogs.length,
+    },
+    {
+      id: "meetings",
+      label: "会议纪要",
+      icon: FileCheck,
+      color: "text-amber-500",
+      count: mockMeetingMinutes.length,
+    },
+  ]
+
   return (
-    <div>
+    <div className="flex flex-col h-full">
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-semibold">事件记录</h2>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="事件类型" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部类型</SelectItem>
-              <SelectItem value="issue">问题记录</SelectItem>
-              <SelectItem value="supervision">旁站记录</SelectItem>
-              <SelectItem value="daily-log">监理日志</SelectItem>
-              <SelectItem value="meeting">会议纪要</SelectItem>
-            </SelectContent>
-          </Select>
+        {/* Tab Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex flex-col space-y-4">
+            <TabsList className="grid grid-cols-4">
+              {tabs.map((tab) => (
+                <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
+                  <tab.icon className={`h-4 w-4 ${tab.color}`} />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <Badge variant="secondary" className="ml-1">
+                    {tab.count}
+                  </Badge>
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-          {/* Only show status filter for issues */}
-          {(selectedType === "all" || selectedType === "issue") && (
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="状态" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部状态</SelectItem>
-                <SelectItem value="pending">待处理</SelectItem>
-                <SelectItem value="resolved">已闭环</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Multi-select action buttons */}
-          {selectedIssueEvents.length > 0 && (
-            <div className="flex gap-2 ml-auto">
-              {/* Generate Inspection Record button */}
-              <Dialog open={showInspectionDialog} onOpenChange={setShowInspectionDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <ClipboardCheck className="h-4 w-4" />
-                    生成巡检记录 ({selectedIssueEvents.length})
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>生成巡检记录</DialogTitle>
-                    <DialogDescription>
-                      您正在基于 {selectedIssueEvents.length} 个问题记录生成巡检记录。生成的巡检记录将包含以下问题。
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="inspection-title">巡检记录标题</Label>
-                      <Input
-                        id="inspection-title"
-                        placeholder="请输入巡检记录标题"
-                        className="col-span-3"
-                        defaultValue={`巡检记录-${new Date().toISOString().split("T")[0]}`}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>包含的问题</Label>
-                      <div className="max-h-[200px] overflow-y-auto border rounded-md p-2">
-                        {selectedIssueEvents.map((id) => {
-                          const event = mockEvents.find((i) => i.id === id)
-                          return (
-                            <div key={id} className="py-2 border-b last:border-0">
-                              {event?.title}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowInspectionDialog(false)}>
-                      取消
-                    </Button>
-                    <Button onClick={handleGenerateInspectionRecord}>确认生成</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              {/* Merge button */}
-              <Dialog open={showMergeDialog} onOpenChange={setShowMergeDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    <MergeIcon className="h-4 w-4" />
-                    合并 ({selectedIssueEvents.length})
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>合并问题记录</DialogTitle>
-                    <DialogDescription>
-                      您正在合并 {selectedIssueEvents.length} 个问题记录。请为合并后的问题提供一个新的描述。
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="merged-description">合并后的问题描述</Label>
-                      <Input id="merged-description" placeholder="请输入合并后的问题描述" className="col-span-3" />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>选中的问题</Label>
-                      <div className="max-h-[200px] overflow-y-auto border rounded-md p-2">
-                        {selectedIssueEvents.map((id) => {
-                          const event = mockEvents.find((i) => i.id === id)
-                          return (
-                            <div key={id} className="py-2 border-b last:border-0">
-                              {event?.title}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowMergeDialog(false)}>
-                      取消
-                    </Button>
-                    <Button onClick={handleMergeEvents}>确认合并</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-4">
-        {filteredEvents.map((event) => (
-          <Card key={event.id} className={`overflow-hidden border-l-4 ${getBorderColor(event.type)}`}>
-            {/* Only show checkbox for issue type events */}
-            {event.type === "issue" && allowsSelection && (
-              <div className="p-1">
-                <Checkbox
-                  id={`select-${event.id}`}
-                  checked={selectedEvents.includes(event.id)}
-                  onCheckedChange={() => handleCheckboxChange(event.id)}
-                  className="ml-2 mt-2"
+            {/* Search and Filter Bar */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="搜索记录..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
                 />
               </div>
-            )}
-            <CardContent className={`p-4 ${event.type === "issue" && allowsSelection ? "pt-0" : ""}`}>
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex gap-2 items-center">
-                  {/* Only show status badge for issue type */}
-                  {event.type === "issue" && getStatusBadge(event.status)}
 
-                  {/* Show type badge for all event types */}
-                  <Badge variant="secondary" className={getBadgeColor(event.type)}>
-                    {getEventTypeLabel(event.type)}
-                  </Badge>
-                </div>
-                <event.icon className={`h-4 w-4 ${getIconColor(event.type)}`} />
-              </div>
-              <h3 className="font-medium line-clamp-2 mb-2">{event.title}</h3>
-
-              <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
-                <Calendar className="h-3 w-3" />
-                <span>{event.date}</span>
-              </div>
-
-              {event.location && (
-                <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
-                  <MapPin className="h-3 w-3" />
-                  <span>{event.location}</span>
-                </div>
+              {/* Status filter for issues tab */}
+              {activeTab === "issues" && (
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="状态" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部状态</SelectItem>
+                    <SelectItem value="pending">待处理</SelectItem>
+                    <SelectItem value="resolved">已闭环</SelectItem>
+                  </SelectContent>
+                </Select>
               )}
 
-              {event.time && (
-                <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
-                  <Clock className="h-3 w-3" />
-                  <span>{event.time}</span>
-                </div>
-              )}
-
-              {event.attendees && (
-                <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
-                  <Users className="h-3 w-3" />
-                  <span>参会人数: {event.attendees}</span>
-                </div>
-              )}
-
-              {event.weather && <div className="text-xs text-muted-foreground mb-1">天气: {event.weather}</div>}
-
-              {event.responsibleUnit && (
-                <div className="text-xs text-muted-foreground mt-2">责任单位: {event.responsibleUnit}</div>
-              )}
-            </CardContent>
-            <CardFooter className="p-4 pt-0 flex justify-end gap-2 flex-wrap">
-              {/* Show Generate Notification button for issue type events */}
-              {event.type === "issue" && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1"
-                        onClick={() => handleGenerateNotification(event.id)}
-                      >
-                        <FileText className="h-3 w-3" />
-                        生成通知单
+              {/* Action buttons for issues tab */}
+              {activeTab === "issues" && selectedIssueEvents.length > 0 && (
+                <div className="flex gap-2 ml-auto">
+                  {/* Generate Inspection Record button */}
+                  <Dialog open={showInspectionDialog} onOpenChange={setShowInspectionDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-1">
+                        <ClipboardCheck className="h-4 w-4" />
+                        生成巡检记录 ({selectedIssueEvents.length})
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>基于此问题生成监理工程师通知单</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>生成巡检记录</DialogTitle>
+                        <DialogDescription>
+                          您正在基于 {selectedIssueEvents.length} 个问题记录生成巡检记录。生成的巡检记录将包含以下问题。
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="inspection-title">巡检记录标题</Label>
+                          <Input
+                            id="inspection-title"
+                            placeholder="请输入巡检记录标题"
+                            className="col-span-3"
+                            defaultValue={`巡检记录-${new Date().toISOString().split("T")[0]}`}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>包含的问题</Label>
+                          <div className="max-h-[200px] overflow-y-auto border rounded-md p-2">
+                            {selectedIssueEvents.map((id) => {
+                              const event = mockEvents.find((i) => i.id === id)
+                              return (
+                                <div key={id} className="py-2 border-b last:border-0">
+                                  {event?.title}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowInspectionDialog(false)}>
+                          取消
+                        </Button>
+                        <Button onClick={handleGenerateInspectionRecord}>确认生成</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
 
-              {/* Show generate daily log button for daily-log type events */}
-              {event.type === "daily-log" && (
-                <Button variant="outline" size="sm" className="gap-1" onClick={() => handleGenerateDailyLog(event.id)}>
-                  <FileText className="h-3 w-3" />
-                  生成监理日志
-                </Button>
+                  {/* Merge button */}
+                  <Dialog open={showMergeDialog} onOpenChange={setShowMergeDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-1">
+                        <MergeIcon className="h-4 w-4" />
+                        合并 ({selectedIssueEvents.length})
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>合并问题记录</DialogTitle>
+                        <DialogDescription>
+                          您正在合并 {selectedIssueEvents.length} 个问题记录。请为合并后的问题提供一个新的描述。
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="merged-description">合并后的问题描述</Label>
+                          <Input id="merged-description" placeholder="请输入合并后的问题描述" className="col-span-3" />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>选中的问题</Label>
+                          <div className="max-h-[200px] overflow-y-auto border rounded-md p-2">
+                            {selectedIssueEvents.map((id) => {
+                              const event = mockEvents.find((i) => i.id === id)
+                              return (
+                                <div key={id} className="py-2 border-b last:border-0">
+                                  {event?.title}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowMergeDialog(false)}>
+                          取消
+                        </Button>
+                        <Button onClick={handleMergeEvents}>确认合并</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               )}
+            </div>
 
-              {/* Show generate supervision record button for supervision type events */}
-              {event.type === "supervision" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1"
-                  onClick={() => handleGenerateSupervisionRecord(event.id)}
-                >
-                  <FileText className="h-3 w-3" />
-                  生成旁站记录
-                </Button>
-              )}
+            {/* Tab Contents */}
+            <div className="flex-1 overflow-auto">
+              {tabs.map((tab) => (
+                <TabsContent key={tab.id} value={tab.id} className="h-full overflow-auto">
+                  <div className="grid gap-4">
+                    {filteredEvents.length > 0 ? (
+                      filteredEvents.map((event) => (
+                        <Card key={event.id} className={`overflow-hidden border-l-4 ${getBorderColor(event.type)}`}>
+                          {/* Only show checkbox for issue type events */}
+                          {event.type === "issue" && activeTab === "issues" && (
+                            <div className="p-1">
+                              <Checkbox
+                                id={`select-${event.id}`}
+                                checked={selectedEvents.includes(event.id)}
+                                onCheckedChange={() => handleCheckboxChange(event.id)}
+                                className="ml-2 mt-2"
+                              />
+                            </div>
+                          )}
+                          <CardContent
+                            className={`p-4 ${event.type === "issue" && activeTab === "issues" ? "pt-0" : ""}`}
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex gap-2 items-center">
+                                {/* Only show status badge for issue type */}
+                                {event.type === "issue" && getStatusBadge(event.status)}
 
-              {/* Show generate meeting minute button for meeting type events */}
-              {event.type === "meeting" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1"
-                  onClick={() => handleGenerateMeetingMinute(event.id)}
-                >
-                  <FileText className="h-3 w-3" />
-                  生成会议纪要
-                </Button>
-              )}
+                                {/* Show type badge for all event types */}
+                                <Badge variant="secondary" className={getBadgeColor(event.type)}>
+                                  {getEventTypeLabel(event.type)}
+                                </Badge>
+                              </div>
+                              <event.icon className={`h-4 w-4 ${getIconColor(event.type)}`} />
+                            </div>
+                            <h3 className="font-medium line-clamp-2 mb-2">{event.title}</h3>
 
-              {/* Show edit button for all events except resolved ones */}
-              {canEditEvent(event) && (
-                <Button variant="outline" size="sm" className="gap-1" onClick={() => handleEdit(event.id)}>
-                  <Edit className="h-3 w-3" />
-                  编辑
-                </Button>
-              )}
+                            <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
+                              <Calendar className="h-3 w-3" />
+                              <span>{event.date}</span>
+                            </div>
 
-              <Button variant="outline" size="sm" onClick={() => handleViewDetails(event)}>
-                查看详情
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+                            {event.location && (
+                              <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
+                                <MapPin className="h-3 w-3" />
+                                <span>{event.location}</span>
+                              </div>
+                            )}
+
+                            {event.time && (
+                              <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
+                                <Clock className="h-3 w-3" />
+                                <span>{event.time}</span>
+                              </div>
+                            )}
+
+                            {event.attendees && (
+                              <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
+                                <Users className="h-3 w-3" />
+                                <span>参会人数: {event.attendees}</span>
+                              </div>
+                            )}
+
+                            {event.weather && (
+                              <div className="text-xs text-muted-foreground mb-1">天气: {event.weather}</div>
+                            )}
+
+                            {event.responsibleUnit && (
+                              <div className="text-xs text-muted-foreground mt-2">
+                                责任单位: {event.responsibleUnit}
+                              </div>
+                            )}
+                          </CardContent>
+                          <CardFooter className="p-4 pt-0 flex justify-end gap-2 flex-wrap">
+                            {/* Show Generate Notification button for issue type events */}
+                            {event.type === "issue" && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="gap-1"
+                                      onClick={() => handleGenerateNotification(event.id)}
+                                    >
+                                      <FileText className="h-3 w-3" />
+                                      生成通知单
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>基于此问题生成监理工程师通知单</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+
+                            {/* Show generate daily log button for daily-log type events */}
+                            {event.type === "daily-log" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => handleGenerateDailyLog(event.id)}
+                              >
+                                <FileText className="h-3 w-3" />
+                                生成监理日志
+                              </Button>
+                            )}
+
+                            {/* Show generate supervision record button for supervision type events */}
+                            {event.type === "supervision" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => handleGenerateSupervisionRecord(event.id)}
+                              >
+                                <FileText className="h-3 w-3" />
+                                生成旁站记录
+                              </Button>
+                            )}
+
+                            {/* Show generate meeting minute button for meeting type events */}
+                            {event.type === "meeting" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => handleGenerateMeetingMinute(event.id)}
+                              >
+                                <FileText className="h-3 w-3" />
+                                生成会议纪要
+                              </Button>
+                            )}
+
+                            {/* Show edit button for all events except resolved ones */}
+                            {canEditEvent(event) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => handleEdit(event.id)}
+                              >
+                                <Edit className="h-3 w-3" />
+                                编辑
+                              </Button>
+                            )}
+
+                            <Button variant="outline" size="sm" onClick={() => handleViewDetails(event)}>
+                              查看详情
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <div className="flex justify-center mb-2">
+                          <Filter className="h-8 w-8 opacity-20" />
+                        </div>
+                        <p>没有找到符合条件的记录</p>
+                        <p className="text-sm">尝试调整筛选条件或清除搜索关键词</p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              ))}
+            </div>
+          </div>
+        </Tabs>
       </div>
 
       {/* Problem Record Detail Modal */}
@@ -973,7 +1065,7 @@ export default function EventsPage() {
         onClose={() => setSupervisionDetailModalOpen(false)}
         record={selectedRecord}
         onEdit={handleEdit}
-        onGenerateRecord={handleGenerateSupervisionRecord}
+        onGenerate={handleGenerateSupervisionRecord}
       />
 
       {/* Supervision Record Edit Modal */}
