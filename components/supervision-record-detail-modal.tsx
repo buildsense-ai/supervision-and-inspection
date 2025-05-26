@@ -4,11 +4,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ClipboardList, FileText, CheckCircle2, AlertCircle, Download, ExternalLink, Trash2 } from "lucide-react"
+import {
+  ClipboardList,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  Download,
+  ExternalLink,
+  Trash2,
+  Upload,
+} from "lucide-react"
 import { useState } from "react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { deleteSupervisionDocument } from "@/lib/api-service"
 import { DeleteConfirmationDialog } from "./delete-confirmation-dialog"
+import { DocumentUploadDialog } from "./document-upload-dialog"
 import { toast } from "@/hooks/use-toast"
 
 interface SupervisionRecordDetailModalProps {
@@ -17,6 +27,7 @@ interface SupervisionRecordDetailModalProps {
   record: any
   onEdit: () => void
   onGenerate: () => void
+  onRefresh?: () => void
 }
 
 interface DocumentInfo {
@@ -32,6 +43,7 @@ export function SupervisionRecordDetailModal({
   record,
   onEdit,
   onGenerate,
+  onRefresh,
 }: SupervisionRecordDetailModalProps) {
   const [activeTab, setActiveTab] = useState("details")
   const [deleteDialog, setDeleteDialog] = useState({
@@ -40,6 +52,7 @@ export function SupervisionRecordDetailModal({
     documentName: "",
     loading: false,
   })
+  const [uploadDialog, setUploadDialog] = useState(false)
 
   if (!record) {
     return null
@@ -182,7 +195,8 @@ export function SupervisionRecordDetailModal({
       const success = await deleteSupervisionDocument(record.id, deleteDialog.documentUrl)
       if (success) {
         setDeleteDialog({ open: false, documentUrl: "", documentName: "", loading: false })
-        // 这里可以触发父组件刷新数据
+        // 触发父组件刷新数据
+        onRefresh?.()
         toast({
           title: "删除成功",
           description: "文档已成功删除",
@@ -198,6 +212,16 @@ export function SupervisionRecordDetailModal({
     } finally {
       setDeleteDialog((prev) => ({ ...prev, loading: false }))
     }
+  }
+
+  // 处理上传成功
+  const handleUploadSuccess = () => {
+    setUploadDialog(false)
+    onRefresh?.()
+    toast({
+      title: "上传成功",
+      description: "文档已成功上传",
+    })
   }
 
   // 格式化时间显示
@@ -331,7 +355,19 @@ export function SupervisionRecordDetailModal({
 
           <TabsContent value="documents" className="space-y-4">
             <div className="border rounded-md p-4">
-              <h3 className="font-medium mb-3">已生成的文档</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium">已生成的文档</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setUploadDialog(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  上传文档
+                </Button>
+              </div>
+
               {documents && documents.length > 0 ? (
                 <div className="space-y-3">
                   {documents.map((doc, index) => (
@@ -391,7 +427,14 @@ export function SupervisionRecordDetailModal({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">暂无生成的文档</p>
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground mb-4">暂无生成的文档</p>
+                  <Button variant="outline" onClick={() => setUploadDialog(true)} className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    上传第一个文档
+                  </Button>
+                </div>
               )}
             </div>
           </TabsContent>
@@ -415,6 +458,15 @@ export function SupervisionRecordDetailModal({
           title="确认删除文档"
           description={`您确定要删除文档 "${deleteDialog.documentName}" 吗？此操作无法撤销。`}
           loading={deleteDialog.loading}
+        />
+
+        {/* 文档上传对话框 */}
+        <DocumentUploadDialog
+          open={uploadDialog}
+          onOpenChange={setUploadDialog}
+          panzhanId={record.id}
+          projectName={record.project_name}
+          onSuccess={handleUploadSuccess}
         />
       </DialogContent>
     </Dialog>
