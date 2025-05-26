@@ -1,7 +1,5 @@
 "use client"
 
-import { DialogTrigger } from "@/components/ui/dialog"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -28,6 +26,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -302,7 +301,26 @@ export default function EventsPage() {
     try {
       setLoadingSupervision(true)
       const records = await getSupervisionRecords(0, 50) // 加载前50条记录
-      setSupervisionRecords(records)
+
+      // 为旁站记录添加 type 字段和其他必要字段
+      const processedRecords = records.map((record) => ({
+        ...record,
+        type: "supervision",
+        icon: ClipboardList,
+        title: record.project_name || "旁站记录",
+        date: record.start_datetime
+          ? new Date(record.start_datetime).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
+        time:
+          record.start_datetime && record.end_datetime
+            ? `${new Date(record.start_datetime).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })} - ${new Date(record.end_datetime).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`
+            : undefined,
+        location: record.pangzhan_unit || "未设置位置",
+        conclusion: record.rectification_status || "待处理",
+        hasDocument: !!record.document_urls,
+      }))
+
+      setSupervisionRecords(processedRecords)
     } catch (error) {
       console.error("加载旁站记录失败:", error)
     } finally {
@@ -744,170 +762,137 @@ export default function EventsPage() {
       </div>
 
       <div className="grid gap-4">
-        {filteredEvents.map((event) => {
-          // 为旁站记录添加显示字段映射
-          const displayEvent =
-            event.type === "supervision" || !event.type
-              ? {
-                  ...event,
-                  type: "supervision",
-                  title: event.project_name || "旁站记录",
-                  date: event.start_datetime
-                    ? new Date(event.start_datetime).toISOString().split("T")[0]
-                    : new Date().toISOString().split("T")[0],
-                  time:
-                    event.start_datetime && event.end_datetime
-                      ? `${new Date(event.start_datetime).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })} - ${new Date(event.end_datetime).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`
-                      : undefined,
-                  location: event.pangzhan_unit || "未设置位置",
-                  conclusion: event.rectification_status || "待处理",
-                  hasDocument: !!event.document_urls,
-                  icon: ClipboardList,
-                }
-              : event
+        {filteredEvents.map((event) => (
+          <Card key={event.id} className={`overflow-hidden border-l-4 ${getBorderColor(event.type)}`}>
+            {/* Only show checkbox for issue type events */}
+            {event.type === "issue" && allowsSelection && (
+              <div className="p-1">
+                <Checkbox
+                  id={`select-${event.id}`}
+                  checked={selectedEvents.includes(event.id)}
+                  onCheckedChange={() => handleCheckboxChange(event.id)}
+                  className="ml-2 mt-2"
+                />
+              </div>
+            )}
+            <CardContent className={`p-4 ${event.type === "issue" && allowsSelection ? "pt-0" : ""}`}>
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex gap-2 items-center">
+                  {/* Only show status badge for issue type */}
+                  {event.type === "issue" && getStatusBadge(event.status)}
 
-          return (
-            <Card
-              key={event.id}
-              className={`overflow-hidden border-l-4 ${getBorderColor(event.type || "supervision")}`}
-            >
-              {/* Only show checkbox for issue type events */}
-              {event.type === "issue" && allowsSelection && (
-                <div className="p-1">
-                  <Checkbox
-                    id={`select-${event.id}`}
-                    checked={selectedEvents.includes(event.id)}
-                    onCheckedChange={() => handleCheckboxChange(event.id)}
-                    className="ml-2 mt-2"
-                  />
+                  {/* Show type badge for all event types */}
+                  <Badge variant="secondary" className={getBadgeColor(event.type)}>
+                    {getEventTypeLabel(event.type)}
+                  </Badge>
+                </div>
+                {event.icon && <event.icon className={`h-4 w-4 ${getIconColor(event.type)}`} />}
+              </div>
+              <h3 className="font-medium line-clamp-2 mb-2">{event.title}</h3>
+
+              <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
+                <Calendar className="h-3 w-3" />
+                <span>{event.date}</span>
+              </div>
+
+              {event.location && (
+                <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
+                  <MapPin className="h-3 w-3" />
+                  <span>{event.location}</span>
                 </div>
               )}
-              <CardContent className={`p-4 ${event.type === "issue" && allowsSelection ? "pt-0" : ""}`}>
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex gap-2 items-center">
-                    {/* Only show status badge for issue type */}
-                    {event.type === "issue" && getStatusBadge(event.status)}
 
-                    {/* Show type badge for all event types */}
-                    <Badge variant="secondary" className={getBadgeColor(event.type)}>
-                      {getEventTypeLabel(event.type)}
-                    </Badge>
-                  </div>
-                  {displayEvent.icon && <displayEvent.icon className={`h-4 w-4 ${getIconColor(event.type)}`} />}
-                </div>
-                <h3 className="font-medium line-clamp-2 mb-2">{displayEvent.title}</h3>
-
+              {event.time && (
                 <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>{displayEvent.date}</span>
+                  <Clock className="h-3 w-3" />
+                  <span>{event.time}</span>
                 </div>
+              )}
 
-                {displayEvent.location && (
-                  <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
-                    <MapPin className="h-3 w-3" />
-                    <span>{displayEvent.location}</span>
-                  </div>
-                )}
+              {event.attendees && (
+                <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
+                  <Users className="h-3 w-3" />
+                  <span>参会人数: {event.attendees}</span>
+                </div>
+              )}
 
-                {displayEvent.time && (
-                  <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{displayEvent.time}</span>
-                  </div>
-                )}
+              {event.weather && <div className="text-xs text-muted-foreground mb-1">天气: {event.weather}</div>}
 
-                {displayEvent.attendees && (
-                  <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
-                    <Users className="h-3 w-3" />
-                    <span>参会人数: {displayEvent.attendees}</span>
-                  </div>
-                )}
+              {event.responsibleUnit && (
+                <div className="text-xs text-muted-foreground mt-2">责任单位: {event.responsibleUnit}</div>
+              )}
+            </CardContent>
+            <CardFooter className="p-4 pt-0 flex justify-end gap-2 flex-wrap">
+              {/* Show Generate Notification button for issue type events */}
+              {event.type === "issue" && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => handleGenerateNotification(event.id)}
+                      >
+                        <FileText className="h-3 w-3" />
+                        生成通知单
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>基于此问题生成监理工程师通知单</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
-                {displayEvent.weather && (
-                  <div className="text-xs text-muted-foreground mb-1">天气: {displayEvent.weather}</div>
-                )}
-
-                {displayEvent.responsibleUnit && (
-                  <div className="text-xs text-muted-foreground mt-2">责任单位: {displayEvent.responsibleUnit}</div>
-                )}
-              </CardContent>
-              <CardFooter className="p-4 pt-0 flex justify-end gap-2 flex-wrap">
-                {/* Show Generate Notification button for issue type events */}
-                {event.type === "issue" && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1"
-                          onClick={() => handleGenerateNotification(event.id)}
-                        >
-                          <FileText className="h-3 w-3" />
-                          生成通知单
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>基于此问题生成监理工程师通知单</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-
-                {/* Show generate daily log button for daily-log type events */}
-                {event.type === "daily-log" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1"
-                    onClick={() => handleGenerateDailyLog(event.id)}
-                  >
-                    <FileText className="h-3 w-3" />
-                    生成监理日志
-                  </Button>
-                )}
-
-                {/* Show generate supervision record button for supervision type events */}
-                {event.type === "supervision" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1"
-                    onClick={() => handleGenerateSupervisionRecord(event.id)}
-                  >
-                    <FileText className="h-3 w-3" />
-                    生成旁站记录
-                  </Button>
-                )}
-
-                {/* Show generate meeting minute button for meeting type events */}
-                {event.type === "meeting" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1"
-                    onClick={() => handleGenerateMeetingMinute(event.id)}
-                  >
-                    <FileText className="h-3 w-3" />
-                    生成会议纪要
-                  </Button>
-                )}
-
-                {/* Show edit button for all events except resolved ones */}
-                {canEditEvent(event) && (
-                  <Button variant="outline" size="sm" className="gap-1" onClick={() => handleEdit(event.id)}>
-                    <Edit className="h-3 w-3" />
-                    编辑
-                  </Button>
-                )}
-
-                <Button variant="outline" size="sm" onClick={() => handleViewDetails(event)}>
-                  查看详情
+              {/* Show generate daily log button for daily-log type events */}
+              {event.type === "daily-log" && (
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => handleGenerateDailyLog(event.id)}>
+                  <FileText className="h-3 w-3" />
+                  生成监理日志
                 </Button>
-              </CardFooter>
-            </Card>
-          )
-        })}
+              )}
+
+              {/* Show generate supervision record button for supervision type events */}
+              {event.type === "supervision" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => handleGenerateSupervisionRecord(event.id)}
+                >
+                  <FileText className="h-3 w-3" />
+                  生成旁站记录
+                </Button>
+              )}
+
+              {/* Show generate meeting minute button for meeting type events */}
+              {event.type === "meeting" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => handleGenerateMeetingMinute(event.id)}
+                >
+                  <FileText className="h-3 w-3" />
+                  生成会议纪要
+                </Button>
+              )}
+
+              {/* Show edit button for all events except resolved ones */}
+              {canEditEvent(event) && (
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => handleEdit(event.id)}>
+                  <Edit className="h-3 w-3" />
+                  编辑
+                </Button>
+              )}
+
+              <Button variant="outline" size="sm" onClick={() => handleViewDetails(event)}>
+                查看详情
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
       </div>
 
       {/* Problem Record Detail Modal */}
