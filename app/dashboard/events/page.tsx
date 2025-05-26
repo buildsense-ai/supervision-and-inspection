@@ -256,13 +256,6 @@ const mockMeetingMinutes = [
   },
 ]
 
-// 在组件开始处添加状态
-const [supervisionRecords, setSupervisionRecords] = useState<SupervisionRecord[]>([])
-const [loadingSupervision, setLoadingSupervision] = useState(true)
-
-// Combine all events
-const mockEvents = [...mockIssues, ...mockDailyLogs, ...supervisionRecords, ...mockMeetingMinutes]
-
 export default function EventsPage() {
   const router = useRouter()
   const [selectedType, setSelectedType] = useState<string>("all")
@@ -270,6 +263,10 @@ export default function EventsPage() {
   const [selectedEvents, setSelectedEvents] = useState<string[]>([])
   const [showMergeDialog, setShowMergeDialog] = useState(false)
   const [showInspectionDialog, setShowInspectionDialog] = useState(false)
+
+  // 旁站记录状态
+  const [supervisionRecords, setSupervisionRecords] = useState<SupervisionRecord[]>([])
+  const [loadingSupervision, setLoadingSupervision] = useState(true)
 
   // State for problem record detail modal
   const [problemDetailModalOpen, setProblemDetailModalOpen] = useState(false)
@@ -299,18 +296,6 @@ export default function EventsPage() {
   // State for meeting minute edit modal
   const [meetingEditModalOpen, setMeetingEditModalOpen] = useState(false)
 
-  // Reset selected events when type changes
-  useEffect(() => {
-    setSelectedEvents([])
-  }, [selectedType])
-
-  // Reset status filter when type changes to non-issue type
-  useEffect(() => {
-    if (selectedType !== "all" && selectedType !== "issue") {
-      setSelectedStatus("all")
-    }
-  }, [selectedType])
-
   // 加载旁站记录数据
   const loadSupervisionRecords = async () => {
     try {
@@ -324,7 +309,22 @@ export default function EventsPage() {
     }
   }
 
-  // 在现有的 useEffect 中添加
+  // 在组件内部合并所有事件
+  const mockEvents = [...mockIssues, ...mockDailyLogs, ...supervisionRecords, ...mockMeetingMinutes]
+
+  // Reset selected events when type changes
+  useEffect(() => {
+    setSelectedEvents([])
+  }, [selectedType])
+
+  // Reset status filter when type changes to non-issue type
+  useEffect(() => {
+    if (selectedType !== "all" && selectedType !== "issue") {
+      setSelectedStatus("all")
+    }
+  }, [selectedType])
+
+  // 加载旁站记录
   useEffect(() => {
     loadSupervisionRecords()
   }, [])
@@ -791,7 +791,7 @@ export default function EventsPage() {
                       {getEventTypeLabel(event.type)}
                     </Badge>
                   </div>
-                  <event.icon className={`h-4 w-4 ${getIconColor(event.type)}`} />
+                  <displayEvent.icon className={`h-4 w-4 ${getIconColor(event.type)}`} />
                 </div>
                 <h3 className="font-medium line-clamp-2 mb-2">{displayEvent.title}</h3>
 
