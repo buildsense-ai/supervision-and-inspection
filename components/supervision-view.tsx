@@ -438,7 +438,37 @@ export function SupervisionView({ highlightedRecordId }: SupervisionViewProps) {
                   </div>
 
                   {/* 添加文档摘要 */}
-                  {record.document_urls && <DocumentSummary documentUrls={record.document_urls} />}
+                  {record.document_urls && (
+                    <DocumentSummary
+                      documentUrls={record.document_urls}
+                      panzhanId={record.id!}
+                      onDocumentDeleted={handleRefresh}
+                      showActions={isExpanded}
+                      maxDisplay={isExpanded ? 10 : 3}
+                    />
+                  )}
+
+                  {/* 添加快速上传按钮（折叠状态下） */}
+                  {!isExpanded && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setUploadDialog({
+                            open: true,
+                            recordId: record.id!,
+                            projectName: record.project_name || "未命名项目",
+                          })
+                        }}
+                        className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Upload className="h-3 w-3 mr-1" />
+                        上传文档
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* 展开的详细信息 */}
