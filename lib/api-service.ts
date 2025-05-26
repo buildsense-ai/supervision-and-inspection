@@ -1,42 +1,44 @@
-// API 服务函数
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 
-const API_BASE_URL = "https://buildsense.asia/docx_utils"
+// 更新 API 基础 URL
+const API_BASE_URL = "https://www.buildsense.asia/docx_utils"
+const UPLOAD_BASE_URL = "https://www.buildsense.asia"
 
-// 定义旁站记录类型
 export interface SupervisionRecord {
   id?: number
-  project_name: string
-  construction_unit: string
+  project_name: string | null
+  construction_unit: string | null
   pangzhan_unit: string | null
-  supervision_company: string
+  supervision_company: string | null
   start_datetime: string | null
   end_datetime: string | null
-  work_overview: string
-  pre_work_check_content: string
-  supervising_personnel: string
-  issues_and_opinions: string
-  rectification_status: string
-  remarks: string
-  construction_enterprise: string
-  supervising_enterprise: string
+  work_overview: string | null
+  pre_work_check_content: string | null
+  supervising_personnel: string | null
+  issues_and_opinions: string | null
+  rectification_status: string | null
+  remarks: string | null
+  construction_enterprise: string | null
+  supervising_enterprise: string | null
   supervising_organization: string | null
-  on_site_supervising_personnel: string
+  on_site_supervising_personnel: string | null
   document_urls: string | null
   created_at?: string
   updated_at?: string
 }
 
-export interface PaginationParams {
-  skip?: number
-  limit?: number
+export interface UploadResponse {
+  status: string
+  project_id: number
+  doc_url: string
+  message: string
 }
 
-// 获取所有旁站记录
-export async function getSupervisionRecords(params: PaginationParams = {}): Promise<SupervisionRecord[]> {
+// 获取旁站记录列表
+export async function getSupervisionRecords(skip = 0, limit = 20): Promise<SupervisionRecord[]> {
   try {
-    const { skip = 0, limit = 50 } = params
     const response = await fetch(`${API_BASE_URL}/pangzhan/?skip=${skip}&limit=${limit}`, {
+      method: "GET",
       headers: {
         accept: "application/json",
       },
@@ -50,23 +52,18 @@ export async function getSupervisionRecords(params: PaginationParams = {}): Prom
     }
 
     const data = await response.json()
-    // API 直接返回数组，不是分页对象
     return Array.isArray(data) ? data : []
   } catch (error) {
     console.error("获取旁站记录出错:", error)
-    toast({
-      title: "获取数据失败",
-      description: error instanceof Error ? error.message : "无法获取旁站记录，请稍后再试",
-      variant: "destructive",
-    })
-    return []
+    throw error
   }
 }
 
 // 获取单个旁站记录
-export async function getSupervisionRecord(id: number | string): Promise<SupervisionRecord | null> {
+export async function getSupervisionRecord(id: number | string): Promise<SupervisionRecord> {
   try {
     const response = await fetch(`${API_BASE_URL}/pangzhan/${id}`, {
+      method: "GET",
       headers: {
         accept: "application/json",
       },
@@ -78,51 +75,45 @@ export async function getSupervisionRecord(id: number | string): Promise<Supervi
       } else if (response.status === 502) {
         throw new Error("服务器暂时不可用，请稍后再试")
       }
-      throw new Error(`获取旁站记录详情失败: ${response.status}`)
+      throw new Error(`获取旁站记录失败: ${response.status}`)
     }
 
     return await response.json()
   } catch (error) {
-    console.error("获取旁站记录详情出错:", error)
-    toast({
-      title: "获取数据失败",
-      description: error instanceof Error ? error.message : "无法获取旁站记录详情，请稍后再试",
-      variant: "destructive",
-    })
-    return null
+    console.error("获取旁站记录出错:", error)
+    throw error
   }
 }
 
 // 创建旁站记录
-export async function createSupervisionRecord(record: SupervisionRecord): Promise<SupervisionRecord | null> {
+export async function createSupervisionRecord(
+  record: Omit<SupervisionRecord, "id" | "created_at" | "updated_at">,
+): Promise<SupervisionRecord> {
   try {
-    // 准备请求体数据，移除 id、created_at、updated_at 字段
-    const { id: recordId, created_at, updated_at, ...createData } = record
-
     const response = await fetch(`${API_BASE_URL}/pangzhan/`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         accept: "application/json",
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(createData),
+      body: JSON.stringify(record),
     })
 
     if (!response.ok) {
       if (response.status === 502) {
         throw new Error("服务器暂时不可用，请稍后再试")
       }
-
-      const errorData = await response.json().catch(() => null)
-      throw new Error(errorData?.detail || `创建旁站记录失败: ${response.status}`)
+      throw new Error(`创建旁站记录失败: ${response.status}`)
     }
+
+    const data = await response.json()
 
     toast({
       title: "创建成功",
       description: "旁站记录已成功创建",
     })
 
-    return await response.json()
+    return data
   } catch (error) {
     console.error("创建旁站记录出错:", error)
     toast({
@@ -130,26 +121,23 @@ export async function createSupervisionRecord(record: SupervisionRecord): Promis
       description: error instanceof Error ? error.message : "创建旁站记录时发生错误",
       variant: "destructive",
     })
-    return null
+    throw error
   }
 }
 
 // 更新旁站记录
 export async function updateSupervisionRecord(
   id: number | string,
-  record: SupervisionRecord,
-): Promise<SupervisionRecord | null> {
+  record: Omit<SupervisionRecord, "id" | "created_at" | "updated_at">,
+): Promise<SupervisionRecord> {
   try {
-    // 准备请求体数据，移除 id、created_at、updated_at 字段
-    const { id: recordId, created_at, updated_at, ...updateData } = record
-
     const response = await fetch(`${API_BASE_URL}/pangzhan/${id}`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
         accept: "application/json",
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(updateData),
+      body: JSON.stringify(record),
     })
 
     if (!response.ok) {
@@ -161,12 +149,14 @@ export async function updateSupervisionRecord(
       throw new Error(`更新旁站记录失败: ${response.status}`)
     }
 
+    const data = await response.json()
+
     toast({
       title: "更新成功",
       description: "旁站记录已成功更新",
     })
 
-    return await response.json()
+    return data
   } catch (error) {
     console.error("更新旁站记录出错:", error)
     toast({
@@ -174,7 +164,7 @@ export async function updateSupervisionRecord(
       description: error instanceof Error ? error.message : "更新旁站记录时发生错误",
       variant: "destructive",
     })
-    return null
+    throw error
   }
 }
 
@@ -214,10 +204,60 @@ export async function deleteSupervisionRecord(id: number | string): Promise<bool
   }
 }
 
+// 上传旁站记录文档
+export async function uploadSupervisionDocument(
+  panzhanId: number | string,
+  file: File,
+  onProgress?: (progress: number) => void,
+): Promise<UploadResponse> {
+  try {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    const response = await fetch(`${UPLOAD_BASE_URL}/upload_doc_standBy?panzhan_id=${panzhanId}`, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error("找不到该旁站记录")
+      } else if (response.status === 502) {
+        throw new Error("服务器暂时不可用，请稍后再试")
+      }
+      throw new Error(`文档上传失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    if (data.status === "success") {
+      toast({
+        title: "上传成功",
+        description: "文档已成功上传",
+      })
+    } else {
+      throw new Error(data.message || "上传失败")
+    }
+
+    return data
+  } catch (error) {
+    console.error("上传文档出错:", error)
+    toast({
+      title: "上传失败",
+      description: error instanceof Error ? error.message : "上传文档时发生错误",
+      variant: "destructive",
+    })
+    throw error
+  }
+}
+
 // 生成旁站记录文档
 export async function generateSupervisionDocument(id: number | string): Promise<string | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}/pangzhan/${id}/generate_docx`, {
+    const response = await fetch(`${API_BASE_URL}/pangzhan/${id}/document`, {
       method: "POST",
       headers: {
         accept: "application/json",
@@ -230,7 +270,7 @@ export async function generateSupervisionDocument(id: number | string): Promise<
       } else if (response.status === 502) {
         throw new Error("服务器暂时不可用，请稍后再试")
       }
-      throw new Error(`生成旁站记录文档失败: ${response.status}`)
+      throw new Error(`生成文档失败: ${response.status}`)
     }
 
     const data = await response.json()
@@ -240,45 +280,54 @@ export async function generateSupervisionDocument(id: number | string): Promise<
       description: "旁站记录文档已成功生成",
     })
 
-    return data.document_url
+    return data.document_url || null
   } catch (error) {
-    console.error("生成旁站记录文档出错:", error)
+    console.error("生成文档出错:", error)
     toast({
       title: "生成失败",
-      description: error instanceof Error ? error.message : "生成旁站记录文档时发生错误",
+      description: error instanceof Error ? error.message : "生成文档时发生错误",
       variant: "destructive",
     })
     return null
   }
 }
 
-// 添加重试机制的通用 fetch 函数
-export async function fetchWithRetry<T>(
-  url: string,
-  options: RequestInit = {},
-  retries = 3,
-  backoff = 300,
-): Promise<T> {
+// 删除旁站记录关联文档
+export async function deleteSupervisionDocument(panzhanId: number | string, fileUrl: string): Promise<boolean> {
   try {
-    const response = await fetch(url, options)
+    const response = await fetch(
+      `${UPLOAD_BASE_URL}/delete_doc_by_url?panzhan_id=${panzhanId}&file_url=${encodeURIComponent(fileUrl)}`,
+      {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+        },
+        body: "",
+      },
+    )
 
-    if (response.ok) {
-      return await response.json()
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error("找不到该文档或旁站记录")
+      } else if (response.status === 502) {
+        throw new Error("服务器暂时不可用，请稍后再试")
+      }
+      throw new Error(`删除文档失败: ${response.status}`)
     }
 
-    if (response.status === 502 && retries > 0) {
-      // 如果是 502 错误且还有重试次数，则等待后重试
-      await new Promise((resolve) => setTimeout(resolve, backoff))
-      return fetchWithRetry<T>(url, options, retries - 1, backoff * 2)
-    }
+    toast({
+      title: "删除成功",
+      description: "文档已成功删除",
+    })
 
-    throw new Error(`请求失败: ${response.status}`)
+    return true
   } catch (error) {
-    if (retries > 0 && error instanceof Error && error.message.includes("fetch")) {
-      // 网络错误时重试
-      await new Promise((resolve) => setTimeout(resolve, backoff))
-      return fetchWithRetry<T>(url, options, retries - 1, backoff * 2)
-    }
-    throw error
+    console.error("删除文档出错:", error)
+    toast({
+      title: "删除失败",
+      description: error instanceof Error ? error.message : "删除文档时发生错误",
+      variant: "destructive",
+    })
+    return false
   }
 }

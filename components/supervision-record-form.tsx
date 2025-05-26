@@ -7,38 +7,29 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { CalendarIcon, Loader2, X } from "lucide-react"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
-import { CalendarIcon, Loader2 } from "lucide-react"
-import { type SupervisionRecord, createSupervisionRecord, updateSupervisionRecord } from "@/lib/api-service"
+import { createSupervisionRecord, updateSupervisionRecord, type SupervisionRecord } from "@/lib/api-service"
 
 interface SupervisionRecordFormProps {
-  isOpen: boolean
-  onClose: () => void
   record?: SupervisionRecord | null
   onSuccess: () => void
+  onCancel: () => void
 }
 
-export function SupervisionRecordForm({ isOpen, onClose, record, onSuccess }: SupervisionRecordFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined)
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined)
-
-  const [formData, setFormData] = useState<Partial<SupervisionRecord>>({
+export function SupervisionRecordForm({ record, onSuccess, onCancel }: SupervisionRecordFormProps) {
+  const [formData, setFormData] = useState<Omit<SupervisionRecord, "id" | "created_at" | "updated_at">>({
     project_name: "",
     construction_unit: "",
     pangzhan_unit: "",
     supervision_company: "",
+    start_datetime: null,
+    end_datetime: null,
     work_overview: "",
     pre_work_check_content: "",
     supervising_personnel: "",
@@ -52,374 +43,375 @@ export function SupervisionRecordForm({ isOpen, onClose, record, onSuccess }: Su
     document_urls: "",
   })
 
+  const [loading, setLoading] = useState(false)
+  const [startDateOpen, setStartDateOpen] = useState(false)
+  const [endDateOpen, setEndDateOpen] = useState(false)
+
+  const isEditing = !!record
+
   // 初始化表单数据
   useEffect(() => {
     if (record) {
       setFormData({
-        ...record,
-        // 处理 null 值
+        project_name: record.project_name || "",
+        construction_unit: record.construction_unit || "",
         pangzhan_unit: record.pangzhan_unit || "",
+        supervision_company: record.supervision_company || "",
+        start_datetime: record.start_datetime,
+        end_datetime: record.end_datetime,
+        work_overview: record.work_overview || "",
+        pre_work_check_content: record.pre_work_check_content || "",
+        supervising_personnel: record.supervising_personnel || "",
+        issues_and_opinions: record.issues_and_opinions || "",
+        rectification_status: record.rectification_status || "",
+        remarks: record.remarks || "",
+        construction_enterprise: record.construction_enterprise || "",
+        supervising_enterprise: record.supervising_enterprise || "",
         supervising_organization: record.supervising_organization || "",
+        on_site_supervising_personnel: record.on_site_supervising_personnel || "",
         document_urls: record.document_urls || "",
       })
-
-      if (record.start_datetime) {
-        setStartDate(new Date(record.start_datetime))
-      }
-
-      if (record.end_datetime) {
-        setEndDate(new Date(record.end_datetime))
-      }
-    } else {
-      // 重置表单时也要处理 null 值
-      setFormData({
-        project_name: "",
-        construction_unit: "",
-        pangzhan_unit: "",
-        supervision_company: "",
-        work_overview: "",
-        pre_work_check_content: "",
-        supervising_personnel: "",
-        issues_and_opinions: "",
-        rectification_status: "",
-        remarks: "",
-        construction_enterprise: "",
-        supervising_enterprise: "",
-        supervising_organization: "",
-        on_site_supervising_personnel: "",
-        document_urls: "",
-      })
-      setStartDate(undefined)
-      setEndDate(undefined)
     }
-  }, [record, isOpen])
+  }, [record])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
+  // 处理表单提交
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
+    setLoading(true)
 
     try {
-      // 准备提交的数据
-      const submitData: SupervisionRecord = {
-        ...(formData as SupervisionRecord),
-        start_datetime: startDate ? startDate.toISOString() : null,
-        end_datetime: endDate ? endDate.toISOString() : null,
-        // 确保空字符串转换为 null（如果 API 需要）
-        pangzhan_unit: formData.pangzhan_unit || null,
-        supervising_organization: formData.supervising_organization || null,
-        document_urls: formData.document_urls || null,
-      }
+      // 准备提交的数据，将空字符串转换为 null
+      const submitData = Object.fromEntries(
+        Object.entries(formData).map(([key, value]) => [key, value === "" ? null : value]),
+      ) as Omit<SupervisionRecord, "id" | "created_at" | "updated_at">
 
-      let result
-
-      if (record?.id) {
-        // 更新记录
-        result = await updateSupervisionRecord(record.id.toString(), submitData)
+      if (isEditing && record?.id) {
+        await updateSupervisionRecord(record.id, submitData)
       } else {
-        // 创建新记录
-        result = await createSupervisionRecord(submitData)
+        await createSupervisionRecord(submitData)
       }
 
-      if (result) {
-        onSuccess()
-        onClose()
-      }
+      onSuccess()
     } catch (error) {
-      console.error("提交表单时出错:", error)
+      console.error("提交表单失败:", error)
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
+    }
+  }
+
+  // 处理输入变化
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  // 处理日期变化
+  const handleDateChange = (field: "start_datetime" | "end_datetime", date: Date | undefined) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: date ? date.toISOString() : null,
+    }))
+  }
+
+  // 格式化日期显示
+  const formatDateDisplay = (dateString: string | null) => {
+    if (!dateString) return "选择日期"
+    try {
+      return format(new Date(dateString), "yyyy-MM-dd HH:mm")
+    } catch {
+      return "选择日期"
     }
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
+    <Dialog open={true} onOpenChange={onCancel}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{record?.id ? "编辑旁站记录" : "新建旁站记录"}</DialogTitle>
-          <DialogDescription>填写旁站记录的详细信息，带 * 的字段为必填项</DialogDescription>
+          <DialogTitle className="flex items-center justify-between">
+            {isEditing ? "编辑旁站记录" : "新建旁站记录"}
+            <Button variant="ghost" size="icon" onClick={onCancel}>
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto max-h-[calc(90vh-10rem)] p-1">
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">基本信息</h3>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 基本信息 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">基本信息</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="project_name">项目名称 *</Label>
+                  <Input
+                    id="project_name"
+                    value={formData.project_name || ""}
+                    onChange={(e) => handleInputChange("project_name", e.target.value)}
+                    placeholder="请输入项目名称"
+                    required
+                  />
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="project_name">
-                  工程名称 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="project_name"
-                  name="project_name"
-                  value={formData.project_name || ""}
-                  onChange={handleChange}
-                  required
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="construction_unit">施工单位</Label>
+                  <Input
+                    id="construction_unit"
+                    value={formData.construction_unit || ""}
+                    onChange={(e) => handleInputChange("construction_unit", e.target.value)}
+                    placeholder="请输入施工单位"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="pangzhan_unit">旁站单位</Label>
+                  <Input
+                    id="pangzhan_unit"
+                    value={formData.pangzhan_unit || ""}
+                    onChange={(e) => handleInputChange("pangzhan_unit", e.target.value)}
+                    placeholder="请输入旁站单位"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="supervision_company">监理公司</Label>
+                  <Input
+                    id="supervision_company"
+                    value={formData.supervision_company || ""}
+                    onChange={(e) => handleInputChange("supervision_company", e.target.value)}
+                    placeholder="请输入监理公司"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="construction_unit">
-                  施工单位 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="construction_unit"
-                  name="construction_unit"
-                  value={formData.construction_unit || ""}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="pangzhan_unit">
-                  旁站单位 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="pangzhan_unit"
-                  name="pangzhan_unit"
-                  value={formData.pangzhan_unit || ""}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="supervision_company">
-                  监理单位 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="supervision_company"
-                  name="supervision_company"
-                  value={formData.supervision_company || ""}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="start_datetime">
-                  开始时间 <span className="text-red-500">*</span>
-                </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !startDate && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, "PPP HH:mm") : "选择日期和时间"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-                    <div className="p-3 border-t">
-                      <Input
-                        type="time"
-                        value={startDate ? format(startDate, "HH:mm") : ""}
-                        onChange={(e) => {
-                          if (startDate && e.target.value) {
-                            const [hours, minutes] = e.target.value.split(":").map(Number)
-                            const newDate = new Date(startDate)
-                            newDate.setHours(hours, minutes)
-                            setStartDate(newDate)
-                          }
+              {/* 时间选择 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>开始时间</Label>
+                  <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.start_datetime && "text-muted-foreground",
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formatDateDisplay(formData.start_datetime)}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.start_datetime ? new Date(formData.start_datetime) : undefined}
+                        onSelect={(date) => {
+                          handleDateChange("start_datetime", date)
+                          setStartDateOpen(false)
                         }}
+                        initialFocus
                       />
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="end_datetime">
-                  结束时间 <span className="text-red-500">*</span>
-                </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP HH:mm") : "选择日期和时间"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
-                    <div className="p-3 border-t">
-                      <Input
-                        type="time"
-                        value={endDate ? format(endDate, "HH:mm") : ""}
-                        onChange={(e) => {
-                          if (endDate && e.target.value) {
-                            const [hours, minutes] = e.target.value.split(":").map(Number)
-                            const newDate = new Date(endDate)
-                            newDate.setHours(hours, minutes)
-                            setEndDate(newDate)
-                          }
+                <div className="space-y-2">
+                  <Label>结束时间</Label>
+                  <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.end_datetime && "text-muted-foreground",
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formatDateDisplay(formData.end_datetime)}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.end_datetime ? new Date(formData.end_datetime) : undefined}
+                        onSelect={(date) => {
+                          handleDateChange("end_datetime", date)
+                          setEndDateOpen(false)
                         }}
+                        initialFocus
                       />
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">工作内容</h3>
-
-            <div className="space-y-2">
-              <Label htmlFor="work_overview">
-                工作概述 <span className="text-red-500">*</span>
-              </Label>
-              <Textarea
-                id="work_overview"
-                name="work_overview"
-                value={formData.work_overview || ""}
-                onChange={handleChange}
-                rows={3}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="pre_work_check_content">施工前检查内容</Label>
-              <Textarea
-                id="pre_work_check_content"
-                name="pre_work_check_content"
-                value={formData.pre_work_check_content || ""}
-                onChange={handleChange}
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">问题与整改</h3>
-
-            <div className="space-y-2">
-              <Label htmlFor="issues_and_opinions">发现问题及处理意见</Label>
-              <Textarea
-                id="issues_and_opinions"
-                name="issues_and_opinions"
-                value={formData.issues_and_opinions || ""}
-                onChange={handleChange}
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="rectification_status">整改情况</Label>
-              <Textarea
-                id="rectification_status"
-                name="rectification_status"
-                value={formData.rectification_status || ""}
-                onChange={handleChange}
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="remarks">备注</Label>
-              <Textarea id="remarks" name="remarks" value={formData.remarks || ""} onChange={handleChange} rows={2} />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">人员信息</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 工作内容 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">工作内容</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="construction_enterprise">施工企业</Label>
-                <Input
-                  id="construction_enterprise"
-                  name="construction_enterprise"
-                  value={formData.construction_enterprise || ""}
-                  onChange={handleChange}
+                <Label htmlFor="work_overview">工作概况</Label>
+                <Textarea
+                  id="work_overview"
+                  value={formData.work_overview || ""}
+                  onChange={(e) => handleInputChange("work_overview", e.target.value)}
+                  placeholder="请输入工作概况"
+                  rows={3}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="supervising_enterprise">监理企业</Label>
-                <Input
-                  id="supervising_enterprise"
-                  name="supervising_enterprise"
-                  value={formData.supervising_enterprise || ""}
-                  onChange={handleChange}
+                <Label htmlFor="pre_work_check_content">工前检查内容</Label>
+                <Textarea
+                  id="pre_work_check_content"
+                  value={formData.pre_work_check_content || ""}
+                  onChange={(e) => handleInputChange("pre_work_check_content", e.target.value)}
+                  placeholder="请输入工前检查内容"
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 人员信息 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">人员信息</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="supervising_personnel">监理人员</Label>
+                  <Input
+                    id="supervising_personnel"
+                    value={formData.supervising_personnel || ""}
+                    onChange={(e) => handleInputChange("supervising_personnel", e.target.value)}
+                    placeholder="请输入监理人员"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="on_site_supervising_personnel">现场监理人员</Label>
+                  <Input
+                    id="on_site_supervising_personnel"
+                    value={formData.on_site_supervising_personnel || ""}
+                    onChange={(e) => handleInputChange("on_site_supervising_personnel", e.target.value)}
+                    placeholder="请输入现场监理人员"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 问题与整改 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">问题与整改</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="issues_and_opinions">发现问题及处理意见</Label>
+                <Textarea
+                  id="issues_and_opinions"
+                  value={formData.issues_and_opinions || ""}
+                  onChange={(e) => handleInputChange("issues_and_opinions", e.target.value)}
+                  placeholder="请输入发现的问题及处理意见"
+                  rows={3}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="supervising_organization">监理机构</Label>
-                <Input
-                  id="supervising_organization"
-                  name="supervising_organization"
-                  value={formData.supervising_organization || ""}
-                  onChange={handleChange}
+                <Label htmlFor="rectification_status">整改情况</Label>
+                <Textarea
+                  id="rectification_status"
+                  value={formData.rectification_status || ""}
+                  onChange={(e) => handleInputChange("rectification_status", e.target.value)}
+                  placeholder="请输入整改情况"
+                  rows={3}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 其他信息 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">其他信息</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="construction_enterprise">施工企业</Label>
+                  <Input
+                    id="construction_enterprise"
+                    value={formData.construction_enterprise || ""}
+                    onChange={(e) => handleInputChange("construction_enterprise", e.target.value)}
+                    placeholder="请输入施工企业"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="supervising_enterprise">监理企业</Label>
+                  <Input
+                    id="supervising_enterprise"
+                    value={formData.supervising_enterprise || ""}
+                    onChange={(e) => handleInputChange("supervising_enterprise", e.target.value)}
+                    placeholder="请输入监理企业"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="supervising_organization">监理机构</Label>
+                  <Input
+                    id="supervising_organization"
+                    value={formData.supervising_organization || ""}
+                    onChange={(e) => handleInputChange("supervising_organization", e.target.value)}
+                    placeholder="请输入监理机构"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="document_urls">文档链接</Label>
+                  <Input
+                    id="document_urls"
+                    value={formData.document_urls || ""}
+                    onChange={(e) => handleInputChange("document_urls", e.target.value)}
+                    placeholder="请输入文档链接"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="supervising_personnel">
-                  监理人员 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="supervising_personnel"
-                  name="supervising_personnel"
-                  value={formData.supervising_personnel || ""}
-                  onChange={handleChange}
-                  required
+                <Label htmlFor="remarks">备注</Label>
+                <Textarea
+                  id="remarks"
+                  value={formData.remarks || ""}
+                  onChange={(e) => handleInputChange("remarks", e.target.value)}
+                  placeholder="请输入备注信息"
+                  rows={3}
                 />
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="on_site_supervising_personnel">现场监理人员</Label>
-                <Input
-                  id="on_site_supervising_personnel"
-                  name="on_site_supervising_personnel"
-                  value={formData.on_site_supervising_personnel || ""}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="document_urls">相关文档链接</Label>
-            <Input
-              id="document_urls"
-              name="document_urls"
-              value={formData.document_urls || ""}
-              onChange={handleChange}
-              placeholder="多个链接请用逗号分隔"
-            />
+          {/* 提交按钮 */}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+              取消
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEditing ? "更新记录" : "创建记录"}
+            </Button>
           </div>
         </form>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-            取消
-          </Button>
-          <Button type="submit" onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                保存中...
-              </>
-            ) : (
-              "保存"
-            )}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

@@ -1,100 +1,128 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   Search,
   Plus,
-  FileDown,
+  Download,
   Trash2,
   Edit,
-  Eye,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
   Calendar,
   Building,
-  User,
+  Users,
+  AlertTriangle,
   CheckCircle,
-  XCircle,
-  AlertCircle,
+  Clock,
   Loader2,
-  RefreshCw,
+  Upload,
+  File,
 } from "lucide-react"
-import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { SupervisionRecordForm } from "./supervision-record-form"
+import { DeleteConfirmationDialog } from "./delete-confirmation-dialog"
+import { ErrorState } from "./error-state"
+import { DocumentUploadDialog } from "./document-upload-dialog"
+import { DocumentManager } from "./document-manager"
+import { DocumentSummary } from "./document-summary"
 import {
-  type SupervisionRecord,
   getSupervisionRecords,
   deleteSupervisionRecord,
   generateSupervisionDocument,
+  type SupervisionRecord,
 } from "@/lib/api-service"
-import { SupervisionRecordForm } from "./supervision-record-form"
-import { ErrorState } from "./error-state"
 
-export function SupervisionView() {
-  const [pagination, setPagination] = useState({ skip: 0, limit: 20 })
-  const [hasMore, setHasMore] = useState(true)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
+interface SupervisionViewProps {
+  highlightedRecordId?: string | number
+}
+
+export function SupervisionView({ highlightedRecordId }: SupervisionViewProps) {
   const [records, setRecords] = useState<SupervisionRecord[]>([])
-  const [filteredRecords, setFilteredRecords] = useState<SupervisionRecord[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedRecords, setSelectedRecords] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [currentRecord, setCurrentRecord] = useState<SupervisionRecord | null>(null)
-  const [processingIds, setProcessingIds] = useState<string[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set())
+  const [expandedRecords, setExpandedRecords] = useState<Set<number>>(new Set())
+  const [showForm, setShowForm] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<SupervisionRecord | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
 
-  // 下拉刷新相关状态
-  const containerRef = useRef<HTMLDivElement>(null)
-  const startY = useRef(0)
-  const [isPulling, setIsPulling] = useState(false)
-  const [pullDistance, setPullDistance] = useState(0)
-  const maxPullDistance = 80
+  // 删除确认相关状态
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    recordId: null as number | null,
+    recordName: "",
+    loading: false,
+  })
+
+  // 批量删除确认相关状态
+  const [batchDeleteDialog, setBatchDeleteDialog] = useState({
+    open: false,
+    loading: false,
+  })
+
+  // 文档上传相关状态
+  const [uploadDialog, setUploadDialog] = useState({
+    open: false,
+    recordId: null as number | null,
+    projectName: "",
+  })
 
   // 加载数据
   const loadRecords = async (reset = false) => {
-    if (reset) {
-      setIsLoading(true)
-      setError(null)
-      setPagination({ skip: 0, limit: 20 })
-    } else {
-      setIsLoadingMore(true)
-    }
-
     try {
-      const currentPagination = reset ? { skip: 0, limit: 20 } : pagination
-      const data = await getSupervisionRecords(currentPagination)
-
       if (reset) {
-        setRecords(data)
-        setFilteredRecords(data)
-      } else {
-        setRecords((prev) => [...prev, ...data])
-        setFilteredRecords((prev) => [...prev, ...data])
+        setLoading(true)
+        setError(null)
       }
 
-      // 如果返回的数据少于请求的数量，说明没有更多数据了
-      setHasMore(data.length === currentPagination.limit)
-      setError(null)
-    } catch (error) {
-      console.error("加载旁站记录失败:", error)
-      setError(error instanceof Error ? error.message : "加载数据失败，请稍后再试")
+      const skip = reset ? 0 : records.length
+      const limit = 20
+
+      const newRecords = await getSupervisionRecords(skip, limit)
+
+      if (reset) {
+        setRecords(newRecords)
+      } else {
+        setRecords((prev) => [...prev, ...newRecords])
+      }
+
+      setHasMore(newRecords.length === limit)
+
+      // 如果有高亮记录，自动展开
+      if (highlightedRecordId && newRecords.some((r) => r.id?.toString() === highlightedRecordId.toString())) {
+        setExpandedRecords((prev) => new Set([...prev, Number(highlightedRecordId)]))
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载数据失败")
     } finally {
-      setIsLoading(false)
-      setIsLoadingMore(false)
-      setIsRefreshing(false)
-      setPullDistance(0)
-      setIsPulling(false)
+      setLoading(false)
+      setRefreshing(false)
+      setLoadingMore(false)
     }
+  }
+
+  // 加载更多数据
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return
+    setLoadingMore(true)
+    await loadRecords(false)
+  }
+
+  // 刷新数据
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadRecords(true)
   }
 
   // 初始加载
@@ -102,82 +130,75 @@ export function SupervisionView() {
     loadRecords(true)
   }, [])
 
-  // 搜索过滤
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredRecords(records)
-      return
-    }
-
-    const query = searchQuery.toLowerCase()
-    const filtered = records.filter(
-      (record) =>
-        record.project_name?.toLowerCase().includes(query) ||
-        record.construction_unit?.toLowerCase().includes(query) ||
-        record.pangzhan_unit?.toLowerCase().includes(query) ||
-        record.supervision_company?.toLowerCase().includes(query) ||
-        record.work_overview?.toLowerCase().includes(query) ||
-        record.issues_and_opinions?.toLowerCase().includes(query) ||
-        record.rectification_status?.toLowerCase().includes(query),
-    )
-
-    setFilteredRecords(filtered)
-  }, [searchQuery, records])
-
-  // 处理选择记录
-  const handleSelectRecord = (id: string) => {
-    setSelectedRecords((prev) => {
-      if (prev.includes(id)) {
-        return prev.filter((recordId) => recordId !== id)
-      } else {
-        return [...prev, id]
-      }
+  // 打开删除确认对话框
+  const openDeleteDialog = (record: SupervisionRecord) => {
+    setDeleteDialog({
+      open: true,
+      recordId: record.id || null,
+      recordName: record.project_name || "未命名项目",
+      loading: false,
     })
   }
 
-  // 处理全选
-  const handleSelectAll = () => {
-    if (selectedRecords.length === filteredRecords.length) {
-      setSelectedRecords([])
-    } else {
-      setSelectedRecords(filteredRecords.map((record) => record.id?.toString() || ""))
-    }
-  }
+  // 确认删除单个记录
+  const confirmDelete = async () => {
+    if (!deleteDialog.recordId) return
 
-  // 处理删除记录
-  const handleDeleteRecord = async (id: string) => {
-    setProcessingIds((prev) => [...prev, id])
+    setDeleteDialog((prev) => ({ ...prev, loading: true }))
 
     try {
-      const success = await deleteSupervisionRecord(id)
+      const success = await deleteSupervisionRecord(deleteDialog.recordId)
       if (success) {
-        // 更新本地数据
-        setRecords((prev) => prev.filter((record) => record.id?.toString() !== id))
-        setSelectedRecords((prev) => prev.filter((recordId) => recordId !== id))
+        setRecords((prev) => prev.filter((record) => record.id !== deleteDialog.recordId))
+        setSelectedRecords((prev) => {
+          const newSet = new Set(prev)
+          newSet.delete(deleteDialog.recordId!)
+          return newSet
+        })
+        setDeleteDialog({ open: false, recordId: null, recordName: "", loading: false })
       }
     } catch (error) {
       console.error("删除记录失败:", error)
     } finally {
-      setProcessingIds((prev) => prev.filter((itemId) => itemId !== id))
+      setDeleteDialog((prev) => ({ ...prev, loading: false }))
     }
   }
 
-  // 处理批量删除
-  const handleBatchDelete = async () => {
-    if (!selectedRecords.length) return
+  // 打开批量删除确认对话框
+  const openBatchDeleteDialog = () => {
+    setBatchDeleteDialog({
+      open: true,
+      loading: false,
+    })
+  }
 
-    if (confirm(`确定要删除选中的 ${selectedRecords.length} 条记录吗？`)) {
-      // 逐个删除选中的记录
-      for (const id of selectedRecords) {
-        await handleDeleteRecord(id)
+  // 确认批量删除
+  const confirmBatchDelete = async () => {
+    setBatchDeleteDialog((prev) => ({ ...prev, loading: true }))
+
+    try {
+      const deletePromises = Array.from(selectedRecords).map((id) => deleteSupervisionRecord(id))
+      const results = await Promise.allSettled(deletePromises)
+
+      // 统计成功删除的记录
+      const successCount = results.filter((result) => result.status === "fulfilled").length
+
+      if (successCount > 0) {
+        // 移除成功删除的记录
+        const successfulIds = Array.from(selectedRecords).filter((_, index) => results[index].status === "fulfilled")
+        setRecords((prev) => prev.filter((record) => !successfulIds.includes(record.id!)))
+        setSelectedRecords(new Set())
       }
+
+      setBatchDeleteDialog({ open: false, loading: false })
+    } catch (error) {
+      console.error("批量删除失败:", error)
+      setBatchDeleteDialog((prev) => ({ ...prev, loading: false }))
     }
   }
 
-  // 处理生成文档
-  const handleGenerateDocument = async (id: string) => {
-    setProcessingIds((prev) => [...prev, id])
-
+  // 生成文档
+  const handleGenerateDocument = async (id: number) => {
     try {
       const documentUrl = await generateSupervisionDocument(id)
       if (documentUrl) {
@@ -186,450 +207,408 @@ export function SupervisionView() {
       }
     } catch (error) {
       console.error("生成文档失败:", error)
-    } finally {
-      setProcessingIds((prev) => prev.filter((itemId) => itemId !== id))
     }
   }
 
-  // 处理编辑记录
-  const handleEditRecord = (record: SupervisionRecord) => {
-    setCurrentRecord(record)
-    setIsFormOpen(true)
-  }
-
-  // 处理新建记录
-  const handleAddRecord = () => {
-    setCurrentRecord(null)
-    setIsFormOpen(true)
-  }
-
-  // 处理表单提交成功
-  const handleFormSuccess = () => {
-    loadRecords(true)
-  }
-
-  // 加载更多
-  const loadMore = () => {
-    if (!isLoadingMore && hasMore) {
-      setPagination((prev) => ({ ...prev, skip: prev.skip + prev.limit }))
-      loadRecords(false)
-    }
-  }
-
-  // 下拉刷新处理
-  const handleTouchStart = (e: React.TouchEvent) => {
-    // 只有在顶部才能下拉刷新
-    if (containerRef.current && containerRef.current.scrollTop === 0) {
-      startY.current = e.touches[0].clientY
-      setIsPulling(true)
-    }
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isPulling) return
-
-    const currentY = e.touches[0].clientY
-    const diff = currentY - startY.current
-
-    // 只有向下拉才有效
-    if (diff > 0) {
-      // 添加阻尼效果，越拉越难拉
-      const dampedDiff = Math.min(diff * 0.5, maxPullDistance)
-      setPullDistance(dampedDiff)
-
-      // 阻止默认滚动
-      e.preventDefault()
-    }
-  }
-
-  const handleTouchEnd = () => {
-    if (isPulling) {
-      if (pullDistance >= maxPullDistance * 0.6) {
-        // 达到刷新阈值
-        setIsRefreshing(true)
-        loadRecords(true)
-      } else {
-        // 未达到阈值，回弹
-        setPullDistance(0)
-        setIsPulling(false)
-      }
-    }
-  }
-
-  // 手动刷新
-  const handleRefresh = () => {
-    setIsRefreshing(true)
-    loadRecords(true)
-  }
-
-  const formatDateTime = (dateString: string | null) => {
-    if (!dateString) return "未设置"
+  // 批量生成文档
+  const handleBatchGenerateDocument = async () => {
     try {
-      return format(new Date(dateString), "yyyy-MM-dd HH:mm")
+      const generatePromises = Array.from(selectedRecords).map((id) => generateSupervisionDocument(id))
+      await Promise.allSettled(generatePromises)
     } catch (error) {
-      return dateString
+      console.error("批量生成文档失败:", error)
     }
   }
 
-  const getStatusBadge = (record: SupervisionRecord) => {
-    // 根据整改情况判断状态
-    if (record.rectification_status?.includes("已完成") || record.rectification_status?.includes("完工")) {
-      return (
-        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          已整改
-        </Badge>
-      )
-    } else if (record.issues_and_opinions && record.rectification_status?.includes("进行中")) {
-      return (
-        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-          <AlertCircle className="w-3 h-3 mr-1" />
-          整改中
-        </Badge>
-      )
-    } else if (record.issues_and_opinions && !record.rectification_status) {
-      return (
-        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-          <XCircle className="w-3 h-3 mr-1" />
-          未整改
-        </Badge>
-      )
-    } else {
-      return (
-        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          正常
-        </Badge>
-      )
-    }
+  // 筛选记录
+  const filteredRecords = records.filter(
+    (record) =>
+      record.project_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.construction_unit?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.supervision_company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.supervising_personnel?.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+
+  // 获取状态
+  const getStatus = (record: SupervisionRecord) => {
+    if (!record.rectification_status) return "pending"
+    const status = record.rectification_status.toLowerCase()
+    if (status.includes("已完成") || status.includes("完成")) return "completed"
+    if (status.includes("进行中") || status.includes("处理中")) return "in-progress"
+    return "pending"
+  }
+
+  // 格式化日期
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "未设置"
+    return new Date(dateString).toLocaleString("zh-CN")
+  }
+
+  // 切换记录选择
+  const toggleRecordSelection = (id: number) => {
+    setSelectedRecords((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }
+
+  // 切换记录展开
+  const toggleRecordExpansion = (id: number) => {
+    setExpandedRecords((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }
+
+  // 编辑记录
+  const handleEdit = (record: SupervisionRecord) => {
+    setEditingRecord(record)
+    setShowForm(true)
+  }
+
+  // 表单提交成功后的回调
+  const handleFormSuccess = () => {
+    setShowForm(false)
+    setEditingRecord(null)
+    handleRefresh()
+  }
+
+  if (loading && records.length === 0) {
+    return (
+      <div className="space-y-4">
+        {/* 骨架屏 */}
+        {[...Array(3)].map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                <div className="h-6 bg-gray-200 rounded w-16"></div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  if (error && records.length === 0) {
+    return <ErrorState message={error} onRetry={() => loadRecords(true)} />
   }
 
   return (
-    <div
-      className="space-y-4 h-full overflow-auto"
-      ref={containerRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* 下拉刷新指示器 */}
-      {isPulling && (
-        <div
-          className="flex justify-center items-center transition-all duration-200 overflow-hidden"
-          style={{ height: `${pullDistance}px` }}
-        >
-          <div
-            className={cn(
-              "transition-transform duration-200",
-              pullDistance >= maxPullDistance * 0.6 ? "text-primary" : "text-muted-foreground",
-            )}
-            style={{
-              transform: `rotate(${(pullDistance / maxPullDistance) * 360}deg)`,
-            }}
-          >
-            <RefreshCw className="h-6 w-6" />
-          </div>
-        </div>
-      )}
-
-      {/* 刷新中指示器 */}
-      {isRefreshing && !isPulling && (
-        <div className="flex justify-center items-center py-2">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        </div>
-      )}
-
-      {/* 顶部操作栏 */}
-      <div className="flex flex-col sm:flex-row gap-2 justify-between">
+    <div className="space-y-4">
+      {/* 操作栏 */}
+      <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            type="search"
-            placeholder="搜索旁站记录..."
-            className="pl-8 h-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="搜索项目名称、施工单位、监理公司..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-9"
           />
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
-            <RefreshCw className={cn("h-4 w-4 mr-1", isRefreshing && "animate-spin")} />
-            刷新
-          </Button>
-          {selectedRecords.length > 0 && (
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+                <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>刷新数据</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>新建旁站记录</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+
+      {/* 批量操作栏 */}
+      {selectedRecords.size > 0 && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
+          <span className="text-sm text-blue-700">已选择 {selectedRecords.size} 条记录</span>
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" size="sm" onClick={handleBatchGenerateDocument}>
+              <Download className="h-4 w-4 mr-1" />
+              批量生成文档
+            </Button>
             <Button
               variant="outline"
               size="sm"
-              className="text-red-600 border-red-200 hover:bg-red-50"
-              onClick={handleBatchDelete}
+              onClick={openBatchDeleteDialog}
+              className="text-red-600 hover:text-red-700"
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              删除 ({selectedRecords.length})
+              批量删除
             </Button>
-          )}
-          <Button size="sm" onClick={handleAddRecord}>
-            <Plus className="h-4 w-4 mr-1" />
-            新建记录
-          </Button>
+          </div>
         </div>
-      </div>
-
-      {/* 快速筛选标签 */}
-      <div className="flex flex-wrap gap-2">
-        <Button variant={searchQuery === "" ? "default" : "outline"} size="sm" onClick={() => setSearchQuery("")}>
-          全部
-        </Button>
-        <Button
-          variant={searchQuery === "未整改" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSearchQuery("未整改")}
-        >
-          未整改
-        </Button>
-        <Button
-          variant={searchQuery === "整改中" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSearchQuery("整改中")}
-        >
-          整改中
-        </Button>
-        <Button
-          variant={searchQuery === "已整改" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSearchQuery("已整改")}
-        >
-          已整改
-        </Button>
-      </div>
-
-      {/* 错误状态 */}
-      {error && !isLoading && (
-        <ErrorState
-          message={error}
-          onRetry={() => {
-            setError(null)
-            loadRecords(true)
-          }}
-        />
       )}
 
       {/* 记录列表 */}
       <div className="space-y-3">
-        {isLoading ? (
-          // 加载骨架屏
-          Array.from({ length: 3 }).map((_, index) => (
-            <Card key={index} className="overflow-hidden">
-              <CardContent className="p-0">
-                <div className="p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <Skeleton className="h-5 w-3/4" />
-                    <Skeleton className="h-5 w-20" />
-                  </div>
-                  <div className="flex gap-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-24" />
-                  </div>
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : filteredRecords.length === 0 && !error ? (
-          <div className="text-center py-8 text-muted-foreground">
-            {searchQuery ? "没有找到匹配的记录" : "暂无旁站记录"}
-          </div>
-        ) : (
-          !error &&
-          filteredRecords.map((record) => (
+        {filteredRecords.map((record) => {
+          const isSelected = selectedRecords.has(record.id!)
+          const isExpanded = expandedRecords.has(record.id!)
+          const isHighlighted = highlightedRecordId && record.id?.toString() === highlightedRecordId.toString()
+          const status = getStatus(record)
+
+          return (
             <Card
               key={record.id}
               className={cn(
-                "overflow-hidden transition-all duration-200",
-                expandedCardId === record.id?.toString() ? "ring-2 ring-primary" : "",
-                selectedRecords.includes(record.id?.toString() || "") ? "bg-primary-50" : "",
+                "transition-all duration-200 cursor-pointer",
+                isHighlighted && "ring-2 ring-blue-500 shadow-lg",
+                isExpanded && "shadow-md",
               )}
+              onClick={() => toggleRecordExpansion(record.id!)}
             >
-              <CardContent className="p-0">
-                <div className="p-4 space-y-3">
-                  {/* 标题行 */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2">
-                      <Checkbox
-                        checked={selectedRecords.includes(record.id?.toString() || "")}
-                        onCheckedChange={() => handleSelectRecord(record.id?.toString() || "")}
-                        className="mt-1"
-                      />
-                      <div>
-                        <h3
-                          className="font-medium line-clamp-1 hover:underline cursor-pointer"
-                          onClick={() =>
-                            setExpandedCardId(expandedCardId === record.id?.toString() ? null : record.id?.toString())
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleRecordSelection(record.id!)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium truncate">
+                        {record.project_name || "未命名项目"}
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            status === "completed" ? "default" : status === "in-progress" ? "secondary" : "outline"
                           }
+                          className="text-xs"
                         >
-                          {record.project_name}
-                        </h3>
-                        <div className="flex flex-wrap gap-2 mt-1 text-sm text-muted-foreground">
-                          <span className="flex items-center">
-                            <Calendar className="h-3.5 w-3.5 mr-1" />
-                            {formatDateTime(record.start_datetime)}
-                          </span>
-                          <span className="flex items-center">
-                            <Building className="h-3.5 w-3.5 mr-1" />
-                            {record.construction_unit}
-                          </span>
-                          <span className="flex items-center">
-                            <User className="h-3.5 w-3.5 mr-1" />
-                            {record.supervising_personnel}
-                          </span>
-                        </div>
+                          {status === "completed" && <CheckCircle className="h-3 w-3 mr-1" />}
+                          {status === "in-progress" && <Clock className="h-3 w-3 mr-1" />}
+                          {status === "pending" && <AlertTriangle className="h-3 w-3 mr-1" />}
+                          {status === "completed" ? "已完成" : status === "in-progress" ? "进行中" : "待处理"}
+                        </Badge>
+                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </div>
                     </div>
-                    <div>{getStatusBadge(record)}</div>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="pt-0">
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    <span className="truncate">{record.construction_unit || "未设置施工单位"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span className="truncate">{record.supervising_personnel || "未设置监理人员"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span className="text-xs">
+                      {formatDate(record.start_datetime)} - {formatDate(record.end_datetime)}
+                    </span>
                   </div>
 
-                  {/* 内容预览 */}
-                  <p className="text-sm text-muted-foreground line-clamp-2">{record.work_overview}</p>
-
-                  {/* 展开内容 */}
-                  {expandedCardId === record.id?.toString() && (
-                    <div className="pt-2 border-t mt-3 space-y-3">
-                      {record.issues_and_opinions && (
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">发现问题及处理意见</h4>
-                          <p className="text-sm">{record.issues_and_opinions}</p>
-                        </div>
-                      )}
-
-                      {record.rectification_status && (
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">整改情况</h4>
-                          <p className="text-sm">{record.rectification_status}</p>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">旁站单位</h4>
-                          <p className="text-sm">{record.pangzhan_unit || "未指定"}</p>
-                        </div>
-
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">监理单位</h4>
-                          <p className="text-sm">{record.supervision_company}</p>
-                        </div>
-                      </div>
-
-                      {record.remarks && (
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">备注</h4>
-                          <p className="text-sm">{record.remarks}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* 添加文档摘要 */}
+                  {record.document_urls && <DocumentSummary documentUrls={record.document_urls} />}
                 </div>
-              </CardContent>
 
-              <CardFooter className="px-4 py-2 border-t flex justify-end gap-2 bg-muted/10">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                {/* 展开的详细信息 */}
+                {isExpanded && (
+                  <div className="mt-4 pt-4 border-t space-y-3">
+                    {record.work_overview && (
+                      <div>
+                        <h4 className="text-sm font-medium mb-1">工作概况</h4>
+                        <p className="text-sm text-gray-600">{record.work_overview}</p>
+                      </div>
+                    )}
+
+                    {record.pre_work_check_content && (
+                      <div>
+                        <h4 className="text-sm font-medium mb-1">工前检查内容</h4>
+                        <p className="text-sm text-gray-600">{record.pre_work_check_content}</p>
+                      </div>
+                    )}
+
+                    {record.issues_and_opinions && (
+                      <div>
+                        <h4 className="text-sm font-medium mb-1">问题及意见</h4>
+                        <p className="text-sm text-gray-600">{record.issues_and_opinions}</p>
+                      </div>
+                    )}
+
+                    {record.rectification_status && (
+                      <div>
+                        <h4 className="text-sm font-medium mb-1">整改情况</h4>
+                        <p className="text-sm text-gray-600">{record.rectification_status}</p>
+                      </div>
+                    )}
+
+                    {/* 操作按钮 */}
+                    <div className="flex gap-2 pt-2">
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() =>
-                          setExpandedCardId(expandedCardId === record.id?.toString() ? null : record.id?.toString())
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEdit(record)
+                        }}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        编辑
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleGenerateDocument(record.id!)
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        生成文档
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setUploadDialog({
+                            open: true,
+                            recordId: record.id!,
+                            projectName: record.project_name || "未命名项目",
+                          })
+                        }}
+                      >
+                        <Upload className="h-4 w-4 mr-1" />
+                        上传文档
+                      </Button>
+
+                      {/* 添加文档管理按钮 */}
+                      <DocumentManager
+                        panzhanId={record.id!}
+                        projectName={record.project_name || "未命名项目"}
+                        documentUrls={record.document_urls}
+                        onDocumentDeleted={handleRefresh}
+                        trigger={
+                          <Button variant="outline" size="sm">
+                            <File className="h-4 w-4 mr-1" />
+                            管理文档
+                          </Button>
                         }
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>查看详情</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditRecord(record)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>编辑记录</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                      />
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleGenerateDocument(record.id?.toString() || "")}
-                        disabled={processingIds.includes(record.id?.toString() || "")}
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openDeleteDialog(record)
+                        }}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
-                        {processingIds.includes(record.id?.toString() || "") ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <FileDown className="h-4 w-4" />
-                        )}
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        删除
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>生成文档</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => handleDeleteRecord(record.id?.toString() || "")}
-                        disabled={processingIds.includes(record.id?.toString() || "")}
-                      >
-                        {processingIds.includes(record.id?.toString() || "") ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>删除记录</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </CardFooter>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
             </Card>
-          ))
-        )}
-        {/* 加载更多按钮 */}
-        {hasMore && !isLoading && !error && (
-          <div className="text-center py-4">
-            <Button variant="outline" onClick={loadMore} disabled={isLoadingMore}>
-              {isLoadingMore ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  加载中...
-                </>
-              ) : (
-                "加载更多"
-              )}
-            </Button>
-          </div>
-        )}
+          )
+        })}
       </div>
 
+      {/* 加载更多 */}
+      {hasMore && (
+        <div className="flex justify-center pt-4">
+          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                加载中...
+              </>
+            ) : (
+              "加载更多"
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* 无数据提示 */}
+      {filteredRecords.length === 0 && !loading && (
+        <div className="text-center py-8 text-gray-500">{searchTerm ? "没有找到匹配的记录" : "暂无旁站记录"}</div>
+      )}
+
       {/* 表单弹窗 */}
-      <SupervisionRecordForm
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        record={currentRecord}
-        onSuccess={handleFormSuccess}
+      {showForm && (
+        <SupervisionRecordForm
+          record={editingRecord}
+          onSuccess={handleFormSuccess}
+          onCancel={() => {
+            setShowForm(false)
+            setEditingRecord(null)
+          }}
+        />
+      )}
+
+      {/* 删除确认对话框 */}
+      <DeleteConfirmationDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog((prev) => ({ ...prev, open }))}
+        onConfirm={confirmDelete}
+        itemName={deleteDialog.recordName}
+        loading={deleteDialog.loading}
+      />
+
+      {/* 批量删除确认对话框 */}
+      <DeleteConfirmationDialog
+        open={batchDeleteDialog.open}
+        onOpenChange={(open) => setBatchDeleteDialog((prev) => ({ ...prev, open }))}
+        onConfirm={confirmBatchDelete}
+        title="确认批量删除"
+        description={`您确定要删除选中的 ${selectedRecords.size} 条旁站记录吗？此操作无法撤销。`}
+        loading={batchDeleteDialog.loading}
+      />
+
+      {/* 文档上传对话框 */}
+      <DocumentUploadDialog
+        open={uploadDialog.open}
+        onOpenChange={(open) => setUploadDialog((prev) => ({ ...prev, open }))}
+        panzhanId={uploadDialog.recordId!}
+        projectName={uploadDialog.projectName}
+        onSuccess={(response) => {
+          console.log("文档上传成功:", response)
+          // 可以在这里刷新记录列表或更新记录的文档链接
+          handleRefresh()
+        }}
       />
     </div>
   )
