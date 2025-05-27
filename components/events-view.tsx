@@ -1,36 +1,31 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { Tabs, Tab } from "@mui/material"
-import SupervisionView from "./supervision-view"
+import { navigate } from "@/lib/routes"
 
-interface EventsViewProps {
-  highlightedRecordId?: string
-}
+const EventsView = () => {
+  // Example usage of the updated routing functions:
+  const handleCreateNewDailyLog = () => {
+    // router.push('/daily-logs/edit/new'); // Original route
+    router.push(navigate.toNewDailyLog()) // Updated route
+  }
 
-const EventsView: React.FC<EventsViewProps> = ({ highlightedRecordId }) => {
-  const [activeTab, setActiveTab] = useState<string>("all")
+  const handleNavigateToDocuments = () => {
+    // router.push('/dashboard/documents'); // Original route
+    router.push(navigate.toDocuments()) // Updated route
+  }
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
-    setActiveTab(newValue)
+  // Dummy router object for demonstration purposes.
+  const router = {
+    push: (route: string) => {
+      console.log(`Navigating to: ${route}`)
+    },
   }
 
   return (
     <div>
-      <Tabs value={activeTab} onChange={handleTabChange} aria-label="event tabs">
-        <Tab label="All Events" value="all" />
-        <Tab label="Supervision Records" value="supervision" />
-      </Tabs>
-
-      {activeTab === "all" && (
-        <div>
-          {/* Placeholder for all events view */}
-          <p>Displaying all events...</p>
-        </div>
-      )}
-
-      {activeTab === "supervision" && <SupervisionView highlightedRecordId={highlightedRecordId} />}
+      <h1>Events View</h1>
+      <button onClick={handleCreateNewDailyLog}>Create New Daily Log</button>
+      <button onClick={handleNavigateToDocuments}>Go to Documents</button>
     </div>
   )
 }
