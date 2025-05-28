@@ -331,3 +331,207 @@ export async function deleteSupervisionDocument(panzhanId: number | string, file
     return false
   }
 }
+
+// 问题记录相关接口
+export interface IssueRecord {
+  id?: number
+  location: string
+  description: string
+  images: string[]
+  record_time: string
+  update_time: string
+  status?: string
+}
+
+export interface IssueCreateRequest {
+  问题发生地点: string
+  问题描述: string
+  相关图片: string
+  记录时间: string
+  状态?: string
+}
+
+// 获取问题记录列表
+export async function getIssueRecords(skip = 0, limit = 100, status?: string): Promise<IssueRecord[]> {
+  try {
+    let url = `${API_BASE_URL}/issues?skip=${skip}&limit=${limit}`
+    if (status && status !== "all") {
+      url += `&status=${encodeURIComponent(status)}`
+    }
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 502) {
+        throw new Error("服务器暂时不可用，请稍后再试")
+      }
+      throw new Error(`获取问题记录失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error("获取问题记录出错:", error)
+    throw error
+  }
+}
+
+// 获取单个问题记录
+export async function getIssueRecord(id: number | string): Promise<IssueRecord> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/issues/${id}`, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error("找不到该问题记录")
+      } else if (response.status === 502) {
+        throw new Error("服务器暂时不可用，请稍后再试")
+      }
+      throw new Error(`获取问题记录失败: ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("获取问题记录出错:", error)
+    throw error
+  }
+}
+
+// 创建问题记录
+export async function createIssueRecord(
+  record: Omit<IssueCreateRequest, "记录时间"> & { 记录时间?: string },
+): Promise<IssueRecord> {
+  try {
+    const requestData: IssueCreateRequest = {
+      ...record,
+      记录时间: record.记录时间 || new Date().toISOString(),
+    }
+
+    const response = await fetch(`${API_BASE_URL}/issues`, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestData),
+    })
+
+    if (!response.ok) {
+      if (response.status === 502) {
+        throw new Error("服务器暂时不可用，请稍后再试")
+      }
+      throw new Error(`创建问题记录失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    toast({
+      title: "创建成功",
+      description: "问题记录已成功创建",
+    })
+
+    return data
+  } catch (error) {
+    console.error("创建问题记录出错:", error)
+    toast({
+      title: "创建失败",
+      description: error instanceof Error ? error.message : "创建问题记录时发生错误",
+      variant: "destructive",
+    })
+    throw error
+  }
+}
+
+// 更新问题记录
+export async function updateIssueRecord(
+  id: number | string,
+  record: Omit<IssueCreateRequest, "记录时间"> & { 记录时间?: string },
+): Promise<IssueRecord> {
+  try {
+    const requestData: IssueCreateRequest = {
+      ...record,
+      记录时间: record.记录时间 || new Date().toISOString(),
+    }
+
+    const response = await fetch(`${API_BASE_URL}/issues/${id}`, {
+      method: "PUT",
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestData),
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error("找不到该问题记录")
+      } else if (response.status === 502) {
+        throw new Error("服务器暂时不可用，请稍后再试")
+      }
+      throw new Error(`更新问题记录失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    toast({
+      title: "更新成功",
+      description: "问题记录已成功更新",
+    })
+
+    return data
+  } catch (error) {
+    console.error("更新问题记录出错:", error)
+    toast({
+      title: "更新失败",
+      description: error instanceof Error ? error.message : "更新问题记录时发生错误",
+      variant: "destructive",
+    })
+    throw error
+  }
+}
+
+// 删除问题记录
+export async function deleteIssueRecord(id: number | string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/issues/${id}`, {
+      method: "DELETE",
+      headers: {
+        accept: "application/json",
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error("找不到该问题记录")
+      } else if (response.status === 502) {
+        throw new Error("服务器暂时不可用，请稍后再试")
+      }
+      throw new Error(`删除问题记录失败: ${response.status}`)
+    }
+
+    toast({
+      title: "删除成功",
+      description: "问题记录已成功删除",
+    })
+
+    return true
+  } catch (error) {
+    console.error("删除问题记录出错:", error)
+    toast({
+      title: "删除失败",
+      description: error instanceof Error ? error.message : "删除问题记录时发生错误",
+      variant: "destructive",
+    })
+    return false
+  }
+}

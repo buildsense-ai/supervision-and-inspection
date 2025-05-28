@@ -63,7 +63,14 @@ export function ProblemRecordEditModal({ isOpen, onClose, record, onSave }: Prob
   }
 
   const handleSave = () => {
-    onSave(editedRecord)
+    // 转换为后端期望的格式
+    const backendFormat = {
+      ...editedRecord,
+      // 确保状态值正确映射
+      status: editedRecord.status === "pending" ? "待处理" : "已闭环",
+    }
+
+    onSave(backendFormat)
   }
 
   return (

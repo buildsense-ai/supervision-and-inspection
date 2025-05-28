@@ -1,5 +1,7 @@
 "use client"
 
+import { DialogTrigger } from "@/components/ui/dialog"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -26,7 +28,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -41,55 +42,17 @@ import { MeetingMinuteEditModal } from "@/components/meeting-minute-edit-modal"
 import { MeetingMinuteDetailModal } from "@/components/meeting-minute-detail-modal"
 import { useRouter } from "next/navigation"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { getSupervisionRecords, type SupervisionRecord } from "@/lib/api-service"
+import {
+  getSupervisionRecords,
+  type SupervisionRecord,
+  getIssueRecords,
+  updateIssueRecord,
+  type IssueRecord,
+} from "@/lib/api-service"
+import { IssueRecordCreateModal } from "@/components/issue-record-create-modal"
 
 // Enhanced mock data for problem records
-const mockIssues = [
-  {
-    id: "issue-1",
-    type: "issue",
-    title: "基坑支护结构变形超出设计允许值",
-    status: "pending",
-    date: "2025-05-10",
-    location: "A区基坑",
-    hasImage: true,
-    responsibleUnit: "某建设单位",
-    icon: AlertCircle,
-    images: ["image1", "image2"],
-    standards: [
-      { code: "GB 50202-2018", name: "建筑地基基础工程施工质量验收标准" },
-      { code: "JGJ 120-2012", name: "建筑基坑支护技术规程" },
-    ],
-    documents: [{ id: "doc1", title: "监理工程师通知单-001" }],
-  },
-  {
-    id: "issue-2",
-    type: "issue",
-    title: "混凝土浇筑过程中出现蜂窝麻面",
-    status: "pending",
-    date: "2025-05-12",
-    location: "B区3层柱",
-    hasImage: true,
-    responsibleUnit: "某施工单位",
-    icon: AlertCircle,
-    images: ["image3"],
-    standards: [{ code: "GB 50204-2015", name: "混凝土结构工程施工质量验收规范" }],
-    documents: [],
-  },
-  {
-    id: "issue-3",
-    type: "issue",
-    title: "钢筋保护层厚度不足",
-    status: "resolved",
-    date: "2025-05-13",
-    location: "C区梁",
-    hasImage: false,
-    responsibleUnit: "某施工单位",
-    icon: AlertCircle,
-    standards: [{ code: "GB 50204-2015", name: "混凝土结构工程施工质量验收规范" }],
-    documents: [{ id: "doc2", title: "监理工程师通知单-002" }],
-  },
-]
+// 删除原来的 mockIssues 常量
 
 // 监理日志数据
 const mockDailyLogs = [
@@ -264,6 +227,10 @@ export default function EventsPage() {
   const [showMergeDialog, setShowMergeDialog] = useState(false)
   const [showInspectionDialog, setShowInspectionDialog] = useState(false)
 
+  // 问题记录状态
+  const [issueRecords, setIssueRecords] = useState<IssueRecord[]>([])
+  const [loadingIssues, setLoadingIssues] = useState(true)
+
   // 旁站记录状态
   const [supervisionRecords, setSupervisionRecords] = useState<SupervisionRecord[]>([])
   const [loadingSupervision, setLoadingSupervision] = useState(true)
@@ -295,6 +262,40 @@ export default function EventsPage() {
 
   // State for meeting minute edit modal
   const [meetingEditModalOpen, setMeetingEditModalOpen] = useState(false)
+
+  // State for issue record create modal
+  const [issueCreateModalOpen, setIssueCreateModalOpen] = useState(false)
+
+  // 加载问题记录数据
+  const loadIssueRecords = async () => {
+    try {
+      setLoadingIssues(true)
+      const statusFilter = selectedStatus === "all" ? undefined : selectedStatus === "pending" ? "待处理" : "已闭环"
+      const records = await getIssueRecords(0, 50, statusFilter)
+
+      // 转换数据格式以匹配前端显示
+      const processedRecords = records.map((record) => ({
+        ...record,
+        type: "issue",
+        icon: AlertCircle,
+        title: record.description,
+        date: record.record_time
+          ? new Date(record.record_time).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
+        status: record.status === "待处理" ? "pending" : "resolved",
+        hasImage: record.images && record.images.length > 0,
+        responsibleUnit: "施工单位", // 后端暂无此字段，使用默认值
+        standards: [], // 后端暂无此字段
+        documents: [], // 后端暂无此字段
+      }))
+
+      setIssueRecords(processedRecords)
+    } catch (error) {
+      console.error("加载问题记录失败:", error)
+    } finally {
+      setLoadingIssues(false)
+    }
+  }
 
   // 加载旁站记录数据
   const loadSupervisionRecords = async () => {
@@ -329,7 +330,7 @@ export default function EventsPage() {
   }
 
   // 在组件内部合并所有事件
-  const mockEvents = [...mockIssues, ...mockDailyLogs, ...supervisionRecords, ...mockMeetingMinutes]
+  const mockEvents = [...issueRecords, ...mockDailyLogs, ...supervisionRecords, ...mockMeetingMinutes]
 
   // Reset selected events when type changes
   useEffect(() => {
@@ -342,6 +343,11 @@ export default function EventsPage() {
       setSelectedStatus("all")
     }
   }, [selectedType])
+
+  // 加载问题记录
+  useEffect(() => {
+    loadIssueRecords()
+  }, [selectedStatus]) // 当状态筛选改变时重新加载
 
   // 加载旁站记录
   useEffect(() => {
@@ -515,22 +521,38 @@ export default function EventsPage() {
   }
 
   // Handle save edited record
-  const handleSaveEdit = (updatedRecord: any) => {
+  const handleSaveEdit = async (updatedRecord: any) => {
     console.log("Saving updated record:", updatedRecord)
-    // In a real app, this would update the record in the database
 
-    // 根据记录类型关闭相应的编辑弹窗
-    if (updatedRecord.type === "daily-log") {
-      setDailyLogEditModalOpen(false)
-    } else if (updatedRecord.type === "supervision") {
-      setSupervisionEditModalOpen(false)
-    } else if (updatedRecord.type === "meeting") {
-      setMeetingEditModalOpen(false)
-    } else {
-      setProblemEditModalOpen(false)
+    try {
+      if (updatedRecord.type === "issue") {
+        // 转换数据格式
+        const updateData = {
+          问题发生地点: updatedRecord.location,
+          问题描述: updatedRecord.title,
+          相关图片: updatedRecord.images ? updatedRecord.images.join(", ") : "",
+          状态: updatedRecord.status === "pending" ? "待处理" : "已闭环",
+        }
+
+        await updateIssueRecord(updatedRecord.id, updateData)
+
+        // 重新加载问题记录
+        await loadIssueRecords()
+      }
+
+      // 根据记录类型关闭相应的编辑弹窗
+      if (updatedRecord.type === "daily-log") {
+        setDailyLogEditModalOpen(false)
+      } else if (updatedRecord.type === "supervision") {
+        setSupervisionEditModalOpen(false)
+      } else if (updatedRecord.type === "meeting") {
+        setMeetingEditModalOpen(false)
+      } else {
+        setProblemEditModalOpen(false)
+      }
+    } catch (error) {
+      console.error("保存记录失败:", error)
     }
-
-    // Show success message or refresh data
   }
 
   // Handle generate notification
@@ -633,6 +655,7 @@ export default function EventsPage() {
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-semibold">事件记录</h2>
+          <Button onClick={() => setIssueCreateModalOpen(true)}>新建问题记录</Button>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -969,6 +992,13 @@ export default function EventsPage() {
         onClose={() => setMeetingEditModalOpen(false)}
         record={selectedRecord}
         onSave={handleSaveEdit}
+      />
+
+      {/* Issue Record Create Modal */}
+      <IssueRecordCreateModal
+        isOpen={issueCreateModalOpen}
+        onClose={() => setIssueCreateModalOpen(false)}
+        onSuccess={loadIssueRecords}
       />
     </div>
   )
